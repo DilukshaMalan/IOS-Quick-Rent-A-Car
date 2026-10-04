@@ -21,6 +21,11 @@ struct VehicleCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Label(vehicle.location, systemImage: "mappin.and.ellipse")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
                 // Specs row
                 HStack(spacing: .spacingS) {
                     SpecBadge(icon: "person.2.fill", value: "\(vehicle.passengerCapacity)")

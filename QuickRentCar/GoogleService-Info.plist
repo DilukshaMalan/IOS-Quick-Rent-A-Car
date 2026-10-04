@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyBf_SDnJYkBZtqS0ku1k2vy2sMntdWcJEc</string>
+	<key>GCM_SENDER_ID</key>
+	<string>197159806026</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.quickrentcar.app</string>
+	<key>PROJECT_ID</key>
+	<string>quickrentcar</string>
+	<key>STORAGE_BUCKET</key>
+	<string>quickrentcar.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:197159806026:ios:bff7a120817b24d8f0b2b3</string>
+</dict>
+</plist>

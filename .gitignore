@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Xcode — per-user state (machine-specific, causes noisy diffs and merge conflicts)
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Xcode build artifacts
+build/
+DerivedData/
+*.xcarchive
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# NOTE: QuickRentCar/GoogleService-Info.plist is intentionally NOT ignored.
+# It holds no secrets — only client-side identifiers (project ID, app ID,
+# bundle ID, GCM sender ID, and an API key that ships inside every app binary).
+# Firebase recommends committing it so the project builds for anyone who clones it.
+#
+# What actually protects your data is Firestore security rules and, if you ever
+# add them, backend credentials. Never commit service-account / Admin SDK JSON
+# keys or *.p12 / *.mobileprovision files.

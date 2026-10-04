@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- Camera — License OCR and AR -->
+    <key>NSCameraUsageDescription</key>
+    <string>QuickRentCar uses the camera to scan your driver's license and preview vehicles in Augmented Reality.</string>
+
+    <!-- Location — Pickup/Return & Geofencing -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>QuickRentCar uses your location to guide you to the pickup location and confirm when you're in the return zone.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>QuickRentCar uses background location to monitor pickup and return geofences and send timely reminders.</string>
+
+    <!-- Face ID -->
+    <key>NSFaceIDUsageDescription</key>
+    <string>QuickRentCar uses Face ID for fast, secure sign-in.</string>
+
+    <!-- Push Notifications -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+        <string>location</string>
+    </array>
+</dict>
+</plist>

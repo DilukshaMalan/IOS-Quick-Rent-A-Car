@@ -1,57 +1,57 @@
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = HomeViewModel()
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: .spacingL) {
-                    // MARK: - Search Header
-                    SearchBarView(
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+
+                    // MARK: 1 — Hero header (greeting + notif bell)
+                    HomeHeaderView(userName: authViewModel.currentUser?.firstName ?? "there")
+                        .padding(.horizontal, .spacingM)
+                        .padding(.top, .spacingM)
+                        .padding(.bottom, .spacingL)
+
+                    // MARK: 2 — Unified booking search card
+                    BookingSearchCard(
                         selectedBranch: $viewModel.selectedBranch,
                         selectedVehicleName: $viewModel.selectedVehicleName,
                         vehicleNames: viewModel.vehicleNames,
+                        pickupDate: $viewModel.pickupDate,
+                        returnDate: $viewModel.returnDate,
                         onSearch: { viewModel.search() }
                     )
-                    .padding(.horizontal)
+                    .padding(.horizontal, .spacingM)
 
-                    // MARK: - Date & Time Row
-                    VStack(spacing: .spacingM) {
-                        DatePickerChip(
-                            label: "Pick Up",
-                            date: $viewModel.pickupDate,
-                            icon: "arrow.up.circle.fill"
-                        )
-                        DatePickerChip(
-                            label: "Return",
-                            date: $viewModel.returnDate,
-                            icon: "arrow.down.circle.fill"
-                        )
-                    }
-                    .padding(.horizontal)
-
-                    // MARK: - Validation / Errors
+                    // Error / validation
                     if let message = viewModel.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
-                            .padding(.horizontal)
+                            .padding(.horizontal, .spacingM)
+                            .padding(.top, .spacingS)
                     }
 
                     #if DEBUG
                     if viewModel.isUsingSampleData {
                         sampleDataBanner
+                            .padding(.top, .spacingS)
                     }
                     #endif
 
-                    // MARK: - Categories
+                    // MARK: 3 — Compact category chips
                     CategoryFilterView(selectedCategory: $viewModel.selectedCategory)
+                        .padding(.top, .spacingL)
 
-                    // MARK: - Featured Vehicles
+                    // MARK: 4 — Featured vehicles
                     if !viewModel.featuredVehicles.isEmpty {
-                        SectionHeader(title: "Featured Vehicles", subtitle: "Top picks for you")
-                            .padding(.horizontal)
+                        SectionHeader(title: "Featured", subtitle: "Top picks for you")
+                            .padding(.horizontal, .spacingM)
+                            .padding(.top, .spacingL)
+                            .padding(.bottom, .spacingS)
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: .spacingM) {
@@ -62,64 +62,70 @@ struct HomeView: View {
                                     .buttonStyle(.plain)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, .spacingM)
+                            .padding(.vertical, 4) // let shadow breathe
                         }
                     }
 
-                    // MARK: - Results
+                    // MARK: 5 — Results list
                     HStack(alignment: .bottom) {
                         SectionHeader(
                             title: resultsTitle,
                             subtitle: viewModel.resultsSubtitle
                         )
-
                         Spacer()
-
                         if viewModel.isSearchActive {
                             Button("Clear") { viewModel.clearSearch() }
                                 .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.fallbackBlue)
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, .spacingM)
+                    .padding(.top, .spacingL)
+                    .padding(.bottom, .spacingXS)
 
+                    // Period summary
                     if let period = viewModel.periodSummary {
                         VStack(alignment: .leading, spacing: 2) {
                             Label(period, systemImage: "calendar")
                             if viewModel.unavailableCount > 0 {
-                                Text("\(viewModel.unavailableCount) vehicle\(viewModel.unavailableCount == 1 ? " is" : "s are") already booked for these dates.")
+                                Text("\(viewModel.unavailableCount) vehicle\(viewModel.unavailableCount == 1 ? " is" : "s are") unavailable for these dates.")
                             }
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal)
+                        .padding(.horizontal, .spacingM)
+                        .padding(.bottom, .spacingS)
                     }
 
+                    // Vehicle list
                     if viewModel.isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity)
-                            .padding()
+                            .padding(.vertical, .spacingXL)
                     } else if viewModel.filteredVehicles.isEmpty {
                         ContentUnavailableView(
                             "No Vehicles Found",
                             systemImage: "car.fill",
                             description: Text(emptyStateMessage)
                         )
+                        .padding(.vertical, .spacingXL)
                     } else {
                         LazyVStack(spacing: .spacingM) {
                             ForEach(viewModel.filteredVehicles) { vehicle in
                                 NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
                                     VehicleCard(vehicle: vehicle)
-                                        .padding(.horizontal)
+                                        .padding(.horizontal, .spacingM)
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
                     }
+
+                    Spacer(minLength: .spacingXXL)
                 }
-                .padding(.bottom, .spacingXL)
             }
-            .navigationTitle("QuickRentCar")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)          // header replaces the navbar
             .refreshable { await viewModel.loadVehicles() }
             .task { await viewModel.loadVehicles() }
         }
@@ -137,17 +143,15 @@ struct HomeView: View {
             return "Try adjusting your search or filters."
         }
         let vehicle = viewModel.selectedVehicleName ?? "vehicle"
-        let branch = viewModel.selectedBranch?.rawValue ?? "this branch"
+        let branch  = viewModel.selectedBranch?.rawValue ?? "this branch"
         return "No \(vehicle) is free at \(branch) for the selected dates. Try different dates, another branch, or another vehicle."
     }
 
     #if DEBUG
-    /// Shown when Firestore has no vehicles yet, so the sample catalogue is on screen.
     private var sampleDataBanner: some View {
         HStack(spacing: .spacingS) {
             Image(systemName: "info.circle.fill")
                 .foregroundStyle(Color.fallbackBlue)
-
             VStack(alignment: .leading, spacing: 2) {
                 Text("Showing sample data")
                     .font(.caption.weight(.semibold))
@@ -155,9 +159,7 @@ struct HomeView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-
             Spacer()
-
             Button("Seed") {
                 Task { await viewModel.seedDatabase() }
             }
@@ -166,33 +168,11 @@ struct HomeView: View {
             .disabled(viewModel.isLoading)
         }
         .padding(.spacingM)
-        .background(Color.fallbackBlue.opacity(0.1))
+        .background(Color.fallbackBlue.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusM))
-        .padding(.horizontal)
+        .padding(.horizontal, .spacingM)
     }
     #endif
-}
-
-// MARK: - Date Picker Chip
-struct DatePickerChip: View {
-    let label: String
-    @Binding var date: Date
-    let icon: String
-
-    var body: some View {
-        HStack {
-            Label(label, systemImage: icon)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                .labelsHidden()
-        }
-        .padding(.spacingM)
-        .cardStyle()
-    }
 }
 
 // MARK: - Section Header

@@ -4,147 +4,233 @@ struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = HomeViewModel()
 
+    // Used to scroll to results section after search is triggered
+    private enum ScrollAnchor: String { case results }
+
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
 
-                    // MARK: 1 — Hero header (greeting + notif bell)
-                    HomeHeaderView(userName: authViewModel.currentUser?.firstName ?? "there")
+                        // ─────────────────────────────────────────────────
+                        // MARK: 1 — Top navigation bar
+                        // ─────────────────────────────────────────────────
+                        HomeTopBarView(
+                            userName: authViewModel.currentUser?.firstName ?? "there"
+                        )
+
+                        // ─────────────────────────────────────────────────
+                        // MARK: 2 — Hero banner (hidden once search is active)
+                        // ─────────────────────────────────────────────────
+                        if !viewModel.isSearchActive {
+                            HeroBannerView()
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+
+                        // ─────────────────────────────────────────────────
+                        // MARK: 3 — Floating search card
+                        // ─────────────────────────────────────────────────
+                        BookingSearchCard(
+                            selectedBranch: $viewModel.selectedBranch,
+                            selectedVehicleName: $viewModel.selectedVehicleName,
+                            vehicleNames: viewModel.vehicleNames,
+                            pickupDate: $viewModel.pickupDate,
+                            returnDate: $viewModel.returnDate,
+                            onSearch: {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                                    viewModel.search()
+                                }
+                                // Small delay so animation starts before scroll
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                    withAnimation(.easeInOut(duration: 0.4)) {
+                                        proxy.scrollTo(ScrollAnchor.results.rawValue, anchor: .top)
+                                    }
+                                }
+                            }
+                        )
                         .padding(.horizontal, .spacingM)
-                        .padding(.top, .spacingM)
-                        .padding(.bottom, .spacingL)
+                        // Only overlap the hero when hero is visible
+                        .offset(y: viewModel.isSearchActive ? 0 : -28)
+                        .padding(.bottom, viewModel.isSearchActive ? 0 : -28)
+                        .animation(.spring(response: 0.45, dampingFraction: 0.82), value: viewModel.isSearchActive)
 
-                    // MARK: 2 — Unified booking search card
-                    BookingSearchCard(
-                        selectedBranch: $viewModel.selectedBranch,
-                        selectedVehicleName: $viewModel.selectedVehicleName,
-                        vehicleNames: viewModel.vehicleNames,
-                        pickupDate: $viewModel.pickupDate,
-                        returnDate: $viewModel.returnDate,
-                        onSearch: { viewModel.search() }
-                    )
-                    .padding(.horizontal, .spacingM)
+                        // Validation error
+                        if let message = viewModel.errorMessage {
+                            Label(message, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, .spacingM)
+                                .padding(.top, .spacingS)
+                                .transition(.opacity)
+                        }
 
-                    // Error / validation
-                    if let message = viewModel.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .padding(.horizontal, .spacingM)
-                            .padding(.top, .spacingS)
-                    }
+                        #if DEBUG
+                        if viewModel.isUsingSampleData {
+                            sampleDataBanner
+                                .padding(.top, .spacingS)
+                        }
+                        #endif
 
-                    #if DEBUG
-                    if viewModel.isUsingSampleData {
-                        sampleDataBanner
-                            .padding(.top, .spacingS)
-                    }
-                    #endif
+                        // ─────────────────────────────────────────────────
+                        // MARK: 4 — Category chips (always visible)
+                        // ─────────────────────────────────────────────────
+                        CategoryFilterView(selectedCategory: $viewModel.selectedCategory)
+                            .padding(.top, .spacingL)
 
-                    // MARK: 3 — Compact category chips
-                    CategoryFilterView(selectedCategory: $viewModel.selectedCategory)
-                        .padding(.top, .spacingL)
+                        // ─────────────────────────────────────────────────
+                        // MARK: 5 — Popular Vehicles (hidden when search active)
+                        // ─────────────────────────────────────────────────
+                        if !viewModel.isSearchActive && !viewModel.featuredVehicles.isEmpty {
+                            Group {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text("Popular Vehicles")
+                                        .font(.title3.bold())
+                                        .foregroundStyle(Color.fallbackNavy)
+                                    Spacer()
+                                    NavigationLink(destination: Text("All Vehicles")) {
+                                        Text("See All")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(Color.fallbackBlue)
+                                    }
+                                }
+                                .padding(.horizontal, .spacingM)
+                                .padding(.top, .spacingL)
+                                .padding(.bottom, .spacingS)
 
-                    // MARK: 4 — Featured vehicles
-                    if !viewModel.featuredVehicles.isEmpty {
-                        SectionHeader(title: "Featured", subtitle: "Top picks for you")
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: .spacingM) {
+                                        ForEach(viewModel.featuredVehicles) { vehicle in
+                                            NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
+                                                PopularVehicleCard(vehicle: vehicle)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(.horizontal, .spacingM)
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+
+                        // ─────────────────────────────────────────────────
+                        // MARK: 6 — Results section (scrolled to on search)
+                        // ─────────────────────────────────────────────────
+                        VStack(alignment: .leading, spacing: 0) {
+
+                            // Results header row
+                            HStack(alignment: .bottom) {
+                                SectionHeader(
+                                    title: resultsTitle,
+                                    subtitle: viewModel.resultsSubtitle
+                                )
+                                Spacer()
+                                if viewModel.isSearchActive {
+                                    // "Clear" button — brings Popular Vehicles back
+                                    Button {
+                                        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                                            viewModel.clearSearch()
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.caption)
+                                            Text("Clear")
+                                                .font(.caption.weight(.semibold))
+                                        }
+                                        .foregroundStyle(Color.fallbackBlue)
+                                    }
+                                }
+                            }
                             .padding(.horizontal, .spacingM)
                             .padding(.top, .spacingL)
-                            .padding(.bottom, .spacingS)
+                            .padding(.bottom, .spacingXS)
+                            // Scroll anchor — this is what we jump to after search
+                            .id(ScrollAnchor.results.rawValue)
 
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: .spacingM) {
-                                ForEach(viewModel.featuredVehicles) { vehicle in
-                                    NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
-                                        FeaturedVehicleCard(vehicle: vehicle)
+                            // Active search summary pill
+                            if viewModel.isSearchActive, let period = viewModel.periodSummary {
+                                HStack(spacing: .spacingS) {
+                                    Image(systemName: "calendar")
+                                        .font(.caption2)
+                                    Text(period)
+                                        .font(.caption)
+
+                                    if viewModel.unavailableCount > 0 {
+                                        Text("·")
+                                        Text("\(viewModel.unavailableCount) unavailable")
+                                            .font(.caption)
                                     }
-                                    .buttonStyle(.plain)
                                 }
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Color.gray.opacity(0.08))
+                                .clipShape(Capsule())
+                                .padding(.horizontal, .spacingM)
+                                .padding(.bottom, .spacingS)
+                                .transition(.scale.combined(with: .opacity))
                             }
-                            .padding(.horizontal, .spacingM)
-                            .padding(.vertical, 4) // let shadow breathe
-                        }
-                    }
 
-                    // MARK: 5 — Results list
-                    HStack(alignment: .bottom) {
-                        SectionHeader(
-                            title: resultsTitle,
-                            subtitle: viewModel.resultsSubtitle
-                        )
-                        Spacer()
-                        if viewModel.isSearchActive {
-                            Button("Clear") { viewModel.clearSearch() }
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.fallbackBlue)
-                        }
-                    }
-                    .padding(.horizontal, .spacingM)
-                    .padding(.top, .spacingL)
-                    .padding(.bottom, .spacingXS)
-
-                    // Period summary
-                    if let period = viewModel.periodSummary {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label(period, systemImage: "calendar")
-                            if viewModel.unavailableCount > 0 {
-                                Text("\(viewModel.unavailableCount) vehicle\(viewModel.unavailableCount == 1 ? " is" : "s are") unavailable for these dates.")
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, .spacingM)
-                        .padding(.bottom, .spacingS)
-                    }
-
-                    // Vehicle list
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, .spacingXL)
-                    } else if viewModel.filteredVehicles.isEmpty {
-                        ContentUnavailableView(
-                            "No Vehicles Found",
-                            systemImage: "car.fill",
-                            description: Text(emptyStateMessage)
-                        )
-                        .padding(.vertical, .spacingXL)
-                    } else {
-                        LazyVStack(spacing: .spacingM) {
-                            ForEach(viewModel.filteredVehicles) { vehicle in
-                                NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
-                                    VehicleCard(vehicle: vehicle)
-                                        .padding(.horizontal, .spacingM)
+                            // ── Vehicle list / empty state / loading ──
+                            if viewModel.isLoading {
+                                VStack(spacing: .spacingM) {
+                                    ProgressView()
+                                    Text("Finding available vehicles…")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
-                                .buttonStyle(.plain)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, .spacingXL)
+                            } else if viewModel.filteredVehicles.isEmpty {
+                                ContentUnavailableView(
+                                    "No Vehicles Found",
+                                    systemImage: "car.fill",
+                                    description: Text(emptyStateMessage)
+                                )
+                                .padding(.vertical, .spacingXL)
+                            } else {
+                                LazyVStack(spacing: .spacingM) {
+                                    ForEach(viewModel.filteredVehicles) { vehicle in
+                                        NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
+                                            VehicleCard(vehicle: vehicle)
+                                                .padding(.horizontal, .spacingM)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                                    }
+                                }
+                                .padding(.bottom, .spacingM)
                             }
                         }
-                    }
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.isSearchActive)
 
-                    Spacer(minLength: .spacingXXL)
+                        Spacer(minLength: .spacingXXL)
+                    }
                 }
             }
-            .navigationBarHidden(true)          // header replaces the navbar
+            .navigationBarHidden(true)
+            .background(Color(UIColor.systemGroupedBackground))
             .refreshable { await viewModel.loadVehicles() }
             .task { await viewModel.loadVehicles() }
         }
     }
 
     // MARK: - Helpers
-
     private var resultsTitle: String {
+        if viewModel.isSearchActive { return "Search Results" }
         if let category = viewModel.selectedCategory { return category.rawValue }
-        return viewModel.isSearchActive ? "Search Results" : "All Vehicles"
+        return "All Vehicles"
     }
 
     private var emptyStateMessage: String {
         guard viewModel.isSearchActive else {
-            return "Try adjusting your search or filters."
+            return "Try adjusting your category filter."
         }
         let vehicle = viewModel.selectedVehicleName ?? "vehicle"
         let branch  = viewModel.selectedBranch?.rawValue ?? "this branch"
-        return "No \(vehicle) is free at \(branch) for the selected dates. Try different dates, another branch, or another vehicle."
+        return "No \(vehicle) available at \(branch) for the selected dates.\nTry different dates, another branch, or another vehicle type."
     }
 
     #if DEBUG
@@ -189,6 +275,65 @@ struct SectionHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+// MARK: - Popular Vehicles Card
+struct PopularVehicleCard: View {
+    let vehicle: Vehicle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            RemoteImageView(url: vehicle.imageURL)
+                .frame(width: 160, height: 110)
+                .clipped()
+                .overlay(alignment: .topTrailing) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.yellow)
+                        Text(String(format: "%.1f", vehicle.rating))
+                            .font(.caption2.bold())
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .padding(8)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(vehicle.name)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(Color.fallbackNavy)
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text(vehicle.location)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 2) {
+                    Text(PriceCalculator.format(vehicle.dailyPrice))
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Color.fallbackBlue)
+                    Text("/ day")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(10)
+        }
+        .frame(width: 160)
+        .background(Color.fallbackCardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
     }
 }
 

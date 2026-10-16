@@ -1,12 +1,12 @@
 import SwiftUI
 
-// MARK: - Unified Booking Search Card (Change 2 + 3)
-/// Replaces the old SearchBarView. Branch picker, vehicle picker and both
-/// date pickers live inside a single elevated card so they feel like one action.
+// MARK: - Simplified Search Card (Figma-style)
+/// Pick-up location row + Pick-up & Drop-off dates side by side + Search button.
+/// Vehicle picker removed — vehicle type is handled by the category filter below.
 struct BookingSearchCard: View {
     @Binding var selectedBranch: Branch?
-    @Binding var selectedVehicleName: String?
-    let vehicleNames: [String]
+    @Binding var selectedVehicleName: String?   // kept for ViewModel compatibility, not shown in UI
+    let vehicleNames: [String]                  // kept for ViewModel compatibility, not shown in UI
     @Binding var pickupDate: Date
     @Binding var returnDate: Date
     let onSearch: () -> Void
@@ -14,193 +14,135 @@ struct BookingSearchCard: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            // MARK: — Branch row
-            pickerRow(
-                icon: "location.fill",
-                iconColor: Color.fallbackBlue,
-                label: "Pick-up location",
-                value: selectedBranch?.rawValue ?? "Any branch"
-            ) {
-                Menu {
-                    Picker("Branch", selection: $selectedBranch) {
-                        Text("Any branch").tag(Branch?.none)
-                        ForEach(Branch.allCases) { b in
-                            Label(b.rawValue, systemImage: b.icon)
-                                .tag(Branch?.some(b))
-                        }
-                    }
-                } label: {
-                    dropdownRowContent(
-                        icon: "location.fill",
-                        iconColor: Color.fallbackBlue,
-                        label: "Pick-up location",
-                        value: selectedBranch?.rawValue ?? "Any branch",
-                        isPlaceholder: selectedBranch == nil
-                    )
-                }
-            }
-
-            divider
-
-            // MARK: — Vehicle row
+            // MARK: Row 1 — Pick-up location
             Menu {
-                Picker("Vehicle", selection: $selectedVehicleName) {
-                    Text("Any vehicle").tag(String?.none)
-                    ForEach(vehicleNames, id: \.self) { n in
-                        Text(n).tag(String?.some(n))
+                Picker("Branch", selection: $selectedBranch) {
+                    Text("Any branch").tag(Branch?.none)
+                    ForEach(Branch.allCases) { b in
+                        Label(b.rawValue, systemImage: b.icon)
+                            .tag(Branch?.some(b))
                     }
                 }
             } label: {
-                dropdownRowContent(
-                    icon: "car.fill",
-                    iconColor: Color.fallbackNavy,
-                    label: "Vehicle",
-                    value: selectedVehicleName ?? "Any vehicle",
-                    isPlaceholder: selectedVehicleName == nil
-                )
+                HStack(spacing: 12) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.fallbackBlue)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pick-up Location")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(selectedBranch?.rawValue ?? "Select a branch")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(selectedBranch == nil ? .secondary : Color.fallbackNavy)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, .spacingM)
+                .padding(.vertical, 14)
             }
 
-            divider
+            // Divider
+            Rectangle()
+                .fill(Color.gray.opacity(0.12))
+                .frame(height: 1)
+                .padding(.horizontal, .spacingM)
 
-            // MARK: — Dates row (inline, side by side)
+            // MARK: Row 2 — Dates side by side (exactly like Figma)
             HStack(spacing: 0) {
+
                 // Pick-up date
-                dateCell(
-                    icon: "arrow.up.circle.fill",
-                    iconColor: .green,
-                    label: "Pick-up",
-                    date: $pickupDate,
-                    minDate: Date()
-                )
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("Pick-up Date", systemImage: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    DatePicker(
+                        "",
+                        selection: $pickupDate,
+                        in: Date()...,
+                        displayedComponents: [.date]
+                    )
+                    .labelsHidden()
+                    .scaleEffect(0.88, anchor: .leading)
+                    .frame(height: 26)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacingM)
+                .padding(.vertical, 12)
 
-                Divider()
-                    .frame(height: 52)
+                // Vertical separator
+                Rectangle()
+                    .fill(Color.gray.opacity(0.12))
+                    .frame(width: 1, height: 50)
 
-                // Return date
-                dateCell(
-                    icon: "arrow.down.circle.fill",
-                    iconColor: .orange,
-                    label: "Return",
-                    date: $returnDate,
-                    minDate: pickupDate.adding(days: 1)
-                )
+                // Drop-off date
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("Drop-off Date", systemImage: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    DatePicker(
+                        "",
+                        selection: $returnDate,
+                        in: pickupDate.adding(days: 1)...,
+                        displayedComponents: [.date]
+                    )
+                    .labelsHidden()
+                    .scaleEffect(0.88, anchor: .leading)
+                    .frame(height: 26)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacingM)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, .spacingM)
-            .padding(.vertical, .spacingS)
 
-            divider
+            // Divider
+            Rectangle()
+                .fill(Color.gray.opacity(0.12))
+                .frame(height: 1)
+                .padding(.horizontal, .spacingM)
 
-            // MARK: — Search button
+            // MARK: Row 3 — Search button (full width, Figma blue)
             Button(action: onSearch) {
-                HStack(spacing: .spacingS) {
+                HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
-                        .fontWeight(.semibold)
+                        .font(.system(size: 15, weight: .bold))
                     Text("Search Vehicles")
-                        .fontWeight(.semibold)
+                        .font(.system(size: 15, weight: .bold))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
                 .background(Color.fallbackBlue)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding([.horizontal, .bottom], .spacingM)
-                .padding(.top, .spacingS)
             }
+            .padding([.horizontal, .bottom], .spacingM)
+            .padding(.top, .spacingS)
         }
         .background(Color.fallbackCardBg)
-        .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusL))
-        .shadow(color: .black.opacity(0.10), radius: 12, x: 0, y: 4)
-    }
-
-    // MARK: - Sub-views
-
-    private var divider: some View {
-        Rectangle()
-            .fill(Color.gray.opacity(0.12))
-            .frame(height: 1)
-            .padding(.horizontal, .spacingM)
-    }
-
-    /// Tappable row that opens a menu — used by branch and vehicle pickers.
-    @ViewBuilder
-    private func pickerRow(
-        icon: String, iconColor: Color,
-        label: String, value: String,
-        @ViewBuilder content: () -> some View
-    ) -> some View {
-        content()
-    }
-
-    @ViewBuilder
-    private func dropdownRowContent(
-        icon: String, iconColor: Color,
-        label: String, value: String,
-        isPlaceholder: Bool
-    ) -> some View {
-        HStack(spacing: .spacingM) {
-            Image(systemName: icon)
-                .foregroundStyle(iconColor)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.subheadline.weight(isPlaceholder ? .regular : .medium))
-                    .foregroundStyle(isPlaceholder ? .secondary : Color.fallbackNavy)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.up.chevron.down")
-                .font(.caption2)
-                .foregroundStyle(Color.secondary)
-        }
-        .padding(.horizontal, .spacingM)
-        .padding(.vertical, 14)
-    }
-
-    @ViewBuilder
-    private func dateCell(
-        icon: String, iconColor: Color,
-        label: String, date: Binding<Date>,
-        minDate: Date
-    ) -> some View {
-        HStack(spacing: .spacingS) {
-            Image(systemName: icon)
-                .foregroundStyle(iconColor)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                DatePicker(
-                    "",
-                    selection: date,
-                    in: minDate...,
-                    displayedComponents: [.date]
-                )
-                .labelsHidden()
-                .scaleEffect(0.85, anchor: .leading)
-                .frame(height: 28)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, .spacingXS)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.12), radius: 16, x: 0, y: 6)
     }
 }
 
 #Preview {
-    BookingSearchCard(
-        selectedBranch: .constant(.colombo),
-        selectedVehicleName: .constant(nil),
-        vehicleNames: ["Toyota Aqua", "Honda CR-V", "Toyota HiAce"],
-        pickupDate: .constant(Date()),
-        returnDate: .constant(Date().adding(days: 3)),
-        onSearch: {}
-    )
-    .padding()
+    ZStack {
+        Color.gray.opacity(0.1).ignoresSafeArea()
+        BookingSearchCard(
+            selectedBranch: .constant(.colombo),
+            selectedVehicleName: .constant(nil),
+            vehicleNames: ["Toyota Aqua", "Honda CR-V"],
+            pickupDate: .constant(Date()),
+            returnDate: .constant(Date().adding(days: 3)),
+            onSearch: {}
+        )
+        .padding()
+    }
 }

@@ -11,24 +11,42 @@ struct SectionLabel: View {
     }
 }
 
+// MARK: - Shared field look
+private extension View {
+    func branchFieldStyle() -> some View {
+        self
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.gray.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusS))
+    }
+}
+
 // MARK: - Location section
+/// Pick-up is fixed to the vehicle's own branch; drop-off defaults to the same branch
+/// and can be switched to any other branch from a menu (no typing).
 struct BookingLocationSection: View {
-    @Binding var pickupLocation: String
+    let pickupLocation: String
     @Binding var dropOffLocation: String
-    @State private var sameAsPickup = false
+    @State private var sameAsPickup = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacingS) {
             SectionLabel("Location")
 
-            LocationField(icon: "arrow.up.circle.fill", placeholder: "Pickup location", text: $pickupLocation)
+            BranchInfoRow(
+                icon: "arrow.up.circle.fill",
+                title: "Pick-up branch",
+                branchName: pickupLocation,
+                caption: "Where this vehicle is based"
+            )
 
-            Toggle("Drop-off at the same location", isOn: $sameAsPickup)
+            Toggle("Return to the same branch", isOn: $sameAsPickup)
                 .font(.subheadline)
                 .tint(Color.fallbackBlue)
 
             if !sameAsPickup {
-                LocationField(icon: "arrow.down.circle.fill", placeholder: "Drop-off location", text: $dropOffLocation)
+                DropOffBranchMenu(selection: $dropOffLocation, pickupLocation: pickupLocation)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -36,77 +54,77 @@ struct BookingLocationSection: View {
         .onChange(of: sameAsPickup) { _, isOn in
             if isOn { dropOffLocation = pickupLocation }
         }
-        .onChange(of: pickupLocation) { _, newValue in
-            if sameAsPickup { dropOffLocation = newValue }
-        }
     }
 }
 
-struct LocationField: View {
+/// Read-only branch row (used for the fixed pick-up branch).
+struct BranchInfoRow: View {
     let icon: String
-    let placeholder: String
-    @Binding var text: String
+    let title: String
+    let branchName: String
+    var caption: String? = nil
 
     var body: some View {
-        HStack {
+        HStack(spacing: .spacingM) {
             Image(systemName: icon).foregroundStyle(Color.fallbackBlue)
-            TextField(placeholder, text: $text)
-        }
-        .padding()
-        .background(Color.gray.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusS))
-    }
-}
 
-// MARK: - Rental period section
-struct BookingRentalPeriodSection: View {
-    @Binding var pickupDate: Date
-    @Binding var returnDate: Date
-    let rentalDays: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacingS) {
-            SectionLabel("Rental Period")
-
-            HStack(spacing: .spacingM) {
-                DateSection(
-                    label: "Pick Up",
-                    date: $pickupDate,
-                    range: Date().startOfDay...Date.distantFuture
-                )
-                DateSection(
-                    label: "Return",
-                    date: $returnDate,
-                    range: pickupDate...Date.distantFuture
-                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Text(Branch(rawValue: branchName)?.displayName ?? branchName)
+                    .font(.subheadline.weight(.medium))
+                if let caption {
+                    Text(caption).font(.caption2).foregroundStyle(.secondary)
+                }
             }
 
-            Text("\(rentalDays) day\(rentalDays == 1 ? "" : "s") rental")
+            Spacer(minLength: 0)
+
+            Image(systemName: "lock.fill")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        // If the pick-up moves past the return date, push the return date forward
-        .onChange(of: pickupDate) { _, newPickup in
-            if returnDate <= newPickup {
-                returnDate = newPickup.adding(days: 1)
-            }
-        }
+        .branchFieldStyle()
     }
 }
 
-struct DateSection: View {
-    let label: String
-    @Binding var date: Date
-    let range: ClosedRange<Date>
+/// Drop-off branch chooser — a menu of the known branches.
+struct DropOffBranchMenu: View {
+    @Binding var selection: String
+    let pickupLocation: String
+
+    private var options: [String] {
+        var names = Branch.allCases.map(\.rawValue)
+        // Safety net for older vehicles whose location isn't one of the known branches
+        if !names.contains(pickupLocation) { names.insert(pickupLocation, at: 0) }
+        return names
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            DatePicker("", selection: $date, in: range, displayedComponents: [.date, .hourAndMinute])
-                .labelsHidden()
+        Menu {
+            Picker("Drop-off branch", selection: $selection) {
+                ForEach(options, id: \.self) { name in
+                    Label(name, systemImage: Branch(rawValue: name)?.icon ?? "mappin.and.ellipse")
+                        .tag(name)
+                }
+            }
+        } label: {
+            HStack(spacing: .spacingM) {
+                Image(systemName: "arrow.down.circle.fill").foregroundStyle(Color.fallbackBlue)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Drop-off branch").font(.caption).foregroundStyle(.secondary)
+                    Text(Branch(rawValue: selection)?.displayName ?? selection)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .branchFieldStyle()
         }
-        .padding()
-        .cardStyle()
-        .frame(maxWidth: .infinity)
     }
 }

@@ -2,21 +2,38 @@ import Foundation
 
 @MainActor
 class BookingViewModel: ObservableObject {
-    @Published var pickupDate = Date()
-    @Published var returnDate = Date().adding(days: 3)
-    @Published var pickupLocation = ""
-    @Published var dropOffLocation = ""
+    @Published var pickupDate: Date
+    @Published var returnDate: Date
+    @Published var pickupLocation: String
+    @Published var dropOffLocation: String
     @Published var isLoading = false
+    @Published var isCheckingAvailability = false
     @Published var errorMessage: String?
     @Published var confirmedBookingId: String?
     @Published var bookingSuccess = false
 
-    let vehicle: Vehicle
+    /// Re-read from Firestore by `refreshAvailability()` so `bookedPeriods` is current.
+    @Published private(set) var vehicle: Vehicle
+
     private let firestoreService = FirestoreService.shared
     private let notificationService = NotificationService.shared
 
     init(vehicle: Vehicle) {
         self.vehicle = vehicle
+        // The car is collected from its own branch, and by default returned there too.
+        self.pickupLocation = vehicle.location
+        self.dropOffLocation = vehicle.location
+
+        // Realistic defaults: tomorrow 09:00, 3-day rental
+        let pickup = Self.defaultPickupDate()
+        self.pickupDate = pickup
+        self.returnDate = pickup.adding(days: 3)
+    }
+
+    /// Tomorrow at 09:00 — better than "right now" as a starting point.
+    private static func defaultPickupDate() -> Date {
+        let tomorrow = Date().adding(days: 1)
+        return Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) ?? tomorrow
     }
 
     // MARK: - Computed Price
@@ -36,18 +53,55 @@ class BookingViewModel: ObservableObject {
         subtotal + taxAmount
     }
 
+    // MARK: - Availability
+    var bookingPeriod: DateRange {
+        DateRange(start: pickupDate, end: returnDate)
+    }
+
+    var isVehicleAvailable: Bool {
+        vehicle.canBeBooked(for: bookingPeriod)
+    }
+
+    /// What the availability banner should show. `nil` while the dates themselves are invalid.
+    var availabilityState: BookingAvailabilityState? {
+        guard returnDate > pickupDate else { return nil }
+        guard vehicle.isAvailable else { return .unavailable }
+        if let conflict = (vehicle.bookedPeriods ?? []).first(where: { $0.overlaps(bookingPeriod) }) {
+            return .booked(conflict)
+        }
+        return .available
+    }
+
+    /// Re-reads the vehicle so availability reflects bookings made since the list loaded.
+    /// Failures are ignored on purpose: the booking transaction re-checks on the server anyway.
+    func refreshAvailability() async {
+        guard let id = vehicle.id else { return }
+        isCheckingAvailability = true
+        defer { isCheckingAvailability = false }
+
+        if let fresh = try? await firestoreService.fetchVehicle(id: id) {
+            vehicle = fresh
+        }
+    }
+
+    // MARK: - Validation
     var isFormValid: Bool {
         pickupLocation.isNotEmpty &&
         dropOffLocation.isNotEmpty &&
-        returnDate > pickupDate
+        returnDate > pickupDate &&
+        isVehicleAvailable
     }
+
     /// Why the form can't continue yet (shown under the Continue button).
     var validationHint: String? {
         if !pickupLocation.isNotEmpty || !dropOffLocation.isNotEmpty {
-            return "Enter pickup and drop-off locations to continue."
+            return "Choose a drop-off branch to continue."
         }
         if returnDate <= pickupDate {
             return "Return time must be after the pick-up time."
+        }
+        if !isVehicleAvailable {
+            return "This vehicle isn't available for the selected dates."
         }
         return nil
     }

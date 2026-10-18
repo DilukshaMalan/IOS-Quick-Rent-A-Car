@@ -10,16 +10,23 @@ extension Color {
     static let scanButton     = Color(red: 0.18,  green: 0.42,  blue: 0.92)
 }
 
-// MARK: - Header (back button + centred title)
 struct LicenseScanHeader: View {
     let title: String
+    var subtitle: String? = nil
     let onBack: () -> Void
 
     var body: some View {
         ZStack {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.white)
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
 
             HStack {
                 Button(action: onBack) {

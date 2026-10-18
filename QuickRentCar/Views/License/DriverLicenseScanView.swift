@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Booking step 2: scan the driver's license, then confirm the booking.
+/// Booking step 2: use the saved license or scan one, then confirm the booking.
 /// Reuses `LicenseOCRViewModel` and `LicenseCameraView` from the existing license code.
 struct DriverLicenseScanView: View {
     @Environment(\.dismiss) private var dismiss
@@ -8,7 +8,30 @@ struct DriverLicenseScanView: View {
     @ObservedObject var bookingViewModel: BookingViewModel
     @StateObject private var viewModel = LicenseOCRViewModel()
     @State private var showCamera = false
+    @State private var wantsNewScan = false
 
+    // MARK: - Saved license
+    private struct SavedLicense {
+        let number: String
+        let expiry: Date
+        var masked: String { "•••• " + number.suffix(4) }
+    }
+
+    /// A saved license is offered only if it is still valid on the day the car is returned.
+    private var savedLicense: SavedLicense? {
+        guard let user = authViewModel.currentUser,
+              let number = user.licenseNumber, number.isNotEmpty,
+              let expiry = user.licenseExpiry,
+              expiry >= bookingViewModel.returnDate
+        else { return nil }
+        return SavedLicense(number: number, expiry: expiry)
+    }
+
+    private var showingSavedLicense: Bool {
+        savedLicense != nil && !wantsNewScan && !viewModel.scanComplete && !viewModel.isScanning
+    }
+
+    // MARK: - State helpers
     private var isWorking: Bool {
         viewModel.isScanning || viewModel.isSaving || bookingViewModel.isLoading
     }
@@ -30,13 +53,24 @@ struct DriverLicenseScanView: View {
         viewModel.errorMessage ?? bookingViewModel.errorMessage
     }
 
+    private var confirmTitle: String {
+        "Confirm Booking – \(PriceCalculator.format(bookingViewModel.totalPrice))"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            LicenseScanHeader(title: "Scan Driver's License") { dismiss() }
+            LicenseScanHeader(
+                title: showingSavedLicense ? "Driver's License" : "Scan Driver's License",
+                subtitle: "Step 2 of 2"
+            ) {
+                dismiss()
+            }
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: .spacingL) {
-                    if viewModel.scanComplete {
+                    if showingSavedLicense, let saved = savedLicense {
+                        SavedLicenseCard(maskedNumber: saved.masked, expiry: saved.expiry)
+                    } else if viewModel.scanComplete {
                         LicenseReviewCard(info: infoBinding)
                     } else {
                         LicenseScanFrameCard(isScanning: viewModel.isScanning)
@@ -77,13 +111,24 @@ struct DriverLicenseScanView: View {
     // MARK: - Bottom buttons
     private var bottomActions: some View {
         VStack(spacing: .spacingS) {
-            if viewModel.scanComplete {
+            if showingSavedLicense {
                 ScanPrimaryButton(
-                    title: "Confirm Booking – \(PriceCalculator.format(bookingViewModel.totalPrice))",
+                    title: confirmTitle,
+                    isLoading: bookingViewModel.isLoading,
+                    isEnabled: true
+                ) {
+                    Task { await confirmWithSavedLicense() }
+                }
+
+                ScanSecondaryButton(title: "Scan a different license") { wantsNewScan = true }
+                    .disabled(isWorking)
+            } else if viewModel.scanComplete {
+                ScanPrimaryButton(
+                    title: confirmTitle,
                     isLoading: viewModel.isSaving || bookingViewModel.isLoading,
                     isEnabled: canConfirm
                 ) {
-                    Task { await confirmBooking() }
+                    Task { await confirmWithScannedLicense() }
                 }
 
                 ScanSecondaryButton(title: "Rescan") { viewModel.reset() }
@@ -114,13 +159,23 @@ struct DriverLicenseScanView: View {
         showCamera = true
     }
 
-    private func confirmBooking() async {
+    /// Saved license: nothing to store, just create the booking.
+    private func confirmWithSavedLicense() async {
+        guard let userId = authViewModel.currentUser?.id else {
+            viewModel.errorMessage = "Please sign in again to confirm your booking."
+            return
+        }
+        await bookingViewModel.confirmBooking(userId: userId)
+    }
+
+    /// New scan: 1) save the license onto the profile  2) create the booking.
+    private func confirmWithScannedLicense() async {
         guard let user = authViewModel.currentUser, let userId = user.id else {
             viewModel.errorMessage = "Please sign in again to confirm your booking."
             return
         }
-        // 1) save license onto the profile  2) create the booking
-        guard await viewModel.saveLicense(merging: user) else { return }
+        guard let updatedUser = await viewModel.saveLicense(merging: user) else { return }
+        authViewModel.currentUser = updatedUser   // so the next booking can reuse this license
         await bookingViewModel.confirmBooking(userId: userId)
     }
 }

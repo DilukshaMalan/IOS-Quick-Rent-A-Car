@@ -11,33 +11,28 @@ struct BookingView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacingL) {
+                // MARK: - Progress
+                BookingStepIndicator(step: 1, total: 2, title: "Trip details")
+
                 // MARK: - Vehicle Summary
                 BookingVehicleSummaryCard(vehicle: viewModel.vehicle)
 
                 // MARK: - Location
                 BookingLocationSection(
-                    pickupLocation: $viewModel.pickupLocation,
+                    pickupLocation: viewModel.pickupLocation,
                     dropOffLocation: $viewModel.dropOffLocation
                 )
 
-                // MARK: - Dates
+                // MARK: - Dates + availability
                 BookingRentalPeriodSection(
                     pickupDate: $viewModel.pickupDate,
                     returnDate: $viewModel.returnDate,
-                    rentalDays: viewModel.rentalDays
+                    rentalDays: viewModel.rentalDays,
+                    unavailablePeriods: viewModel.vehicle.bookedPeriods ?? []
                 )
 
-                // MARK: - Price Summary
-                VStack(alignment: .leading, spacing: .spacingS) {
-                    SectionLabel("Price Breakdown")
-
-                    PriceSummaryView(
-                        dailyRate: viewModel.vehicle.dailyPrice,
-                        days: viewModel.rentalDays,
-                        subtotal: viewModel.subtotal,
-                        tax: viewModel.taxAmount,
-                        total: viewModel.totalPrice
-                    )
+                if let state = viewModel.availabilityState {
+                    BookingAvailabilityBanner(state: state, isChecking: viewModel.isCheckingAvailability)
                 }
             }
             .padding(.horizontal, .spacingL)
@@ -45,16 +40,27 @@ struct BookingView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {
-            // MARK: - CTA
+            // MARK: - Price + CTA
             BookingContinueBar(
+                dailyRate: viewModel.vehicle.dailyPrice,
+                days: viewModel.rentalDays,
+                subtotal: viewModel.subtotal,
+                tax: viewModel.taxAmount,
                 total: viewModel.totalPrice,
+                includedMileage: viewModel.vehicle.includedMileage,
                 hint: viewModel.isFormValid ? nil : viewModel.validationHint,
-                isEnabled: viewModel.isFormValid
+                isEnabled: viewModel.isFormValid,
+                isLoading: viewModel.isCheckingAvailability
             ) {
                 hideKeyboard()
-                showLicenseStep = true
+                Task {
+                    // Re-check right before moving on, in case someone booked in the meantime
+                    await viewModel.refreshAvailability()
+                    if viewModel.isFormValid { showLicenseStep = true }
+                }
             }
         }
+        .task { await viewModel.refreshAvailability() }
         .navigationTitle("Book Vehicle")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $showLicenseStep) {

@@ -1,11 +1,13 @@
 import SwiftUI
 
+/// Price breakdown (rate × days, tax, included mileage). Flat — it sits inside the sticky bar,
+/// which already shows the total.
 struct PriceSummaryView: View {
     let dailyRate: Double
     let days: Int
     let subtotal: Double
     let tax: Double
-    let total: Double
+    var includedMileage: Int? = nil
 
     var body: some View {
         VStack(spacing: .spacingS) {
@@ -14,11 +16,14 @@ struct PriceSummaryView: View {
                 value: PriceCalculator.format(subtotal)
             )
             PriceRow(label: "Tax (\(Int(Constants.Pricing.taxRate * 100))%)", value: PriceCalculator.format(tax))
-            Divider()
-            PriceRow(label: "Total", value: PriceCalculator.format(total), isTotal: true)
+
+            if let includedMileage {
+                Label("Includes \(includedMileage) km per day", systemImage: "speedometer")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .padding()
-        .cardStyle()
     }
 }
 

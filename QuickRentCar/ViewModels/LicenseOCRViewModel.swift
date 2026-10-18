@@ -1,61 +1,26 @@
 import Foundation
-import UIKit
 
-@MainActor
-class LicenseOCRViewModel: ObservableObject {
-    @Published var capturedImage: UIImage?
-    @Published var extractedInfo: LicenseInfo?
-    @Published var isScanning = false
-    @Published var isSaving = false
-    @Published var errorMessage: String?
-    @Published var scanComplete = false
-
-    private let ocrService = VisionOCRService.shared
-    private let firestoreService = FirestoreService.shared
-
-    // MARK: - Process Captured Image
-    func processImage(_ image: UIImage) async {
-        capturedImage = image
-        isScanning = true
-        errorMessage = nil
-
-        do {
-            let info = try await ocrService.extractLicenseInfo(from: image)
-            extractedInfo = info
-            scanComplete = true
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        isScanning = false
-    }
-
-    // MARK: - Save to Profile
-    func saveLicenseInfo(userId: String) async {
-        guard let info = extractedInfo else { return }
+extension LicenseOCRViewModel {
+    /// Saves the scanned license number/expiry onto a copy of the *existing* user profile.
+    /// Unlike `saveLicenseInfo(userId:)`, this keeps the user's email, phone number,
+    /// createdAt, Face ID setting etc. untouched.
+    @discardableResult
+    func saveLicense(merging user: User) async -> Bool {
+        guard let info = extractedInfo else { return false }
         isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+
+        var updated = user
+        updated.licenseNumber = info.licenseNumber
+        updated.licenseExpiry = info.expiryDate
 
         do {
-            let user = User(
-                id: userId,
-                email: "",
-                fullName: info.fullName,
-                licenseNumber: info.licenseNumber,
-                licenseExpiry: info.expiryDate
-            )
-            try await firestoreService.updateUser(user)
+            try await FirestoreService.shared.updateUser(updated)
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
-
-        isSaving = false
-    }
-
-    // MARK: - Reset
-    func reset() {
-        capturedImage = nil
-        extractedInfo = nil
-        scanComplete = false
-        errorMessage = nil
     }
 }

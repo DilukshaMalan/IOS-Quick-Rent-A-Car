@@ -41,6 +41,16 @@ class BookingViewModel: ObservableObject {
         dropOffLocation.isNotEmpty &&
         returnDate > pickupDate
     }
+    /// Why the form can't continue yet (shown under the Continue button).
+    var validationHint: String? {
+        if !pickupLocation.isNotEmpty || !dropOffLocation.isNotEmpty {
+            return "Enter pickup and drop-off locations to continue."
+        }
+        if returnDate <= pickupDate {
+            return "Return time must be after the pick-up time."
+        }
+        return nil
+    }
 
     // MARK: - Confirm Booking
     func confirmBooking(userId: String) async {

@@ -1,90 +1,82 @@
 import SwiftUI
 
-// MARK: - Simplified Vehicle List Card (Change 5)
+// MARK: - Vehicle List Card  (matches Figma "Available Vehicles" design)
 struct VehicleCard: View {
     let vehicle: Vehicle
 
     var body: some View {
-        HStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
 
-            // MARK: — Left: image
-            RemoteImageView(url: vehicle.imageURL)
-                .frame(width: 120, height: 95)
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: .cornerRadiusM,
-                        bottomLeadingRadius: .cornerRadiusM,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: 0
-                    )
-                )
+            // ── Top row: image + details ──────────────────────────
+            HStack(alignment: .center, spacing: .spacingM) {
 
-            // MARK: — Right: info
-            VStack(alignment: .leading, spacing: .spacingXS) {
+                // Left: vehicle image — square, no corner clip on right side
+                RemoteImageView(url: vehicle.imageURL)
+                    .frame(width: 110, height: 90)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .background(Color.gray.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                // Name + chevron
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(vehicle.name)
-                            .font(.subheadline.bold())
-                            .foregroundStyle(Color.fallbackNavy)
-                            .lineLimit(1)
+                // Right: name + specs + price
+                VStack(alignment: .leading, spacing: 5) {
 
-                        // Category badge
-                        Text(vehicle.category.rawValue.uppercased())
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.fallbackBlue)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .background(Color.fallbackBlue.opacity(0.10))
-                            .clipShape(Capsule())
-                    }
+                    // Vehicle name
+                    Text(vehicle.name)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(Color.fallbackNavy)
+                        .lineLimit(1)
 
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(Color.secondary)
-                }
-
-                // Location
-                Label(vehicle.location, systemImage: "mappin.and.ellipse")
-                    .font(.caption)
+                    // Specs row: "7 Seats • Diesel • Automatic"
+                    Text([
+                        "\(vehicle.passengerCapacity) Seats",
+                        vehicle.fuelType.rawValue,
+                        vehicle.transmission.rawValue
+                    ].joined(separator: " • "))
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                Spacer()
+                    // Mileage line: "100 km/day included"
+                    Text("\(vehicle.includedMileage) km/day included")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
 
-                // Bottom row: 2 key specs + price
-                HStack(spacing: .spacingS) {
-                    // Only show the two most useful specs
-                    SpecPill(icon: "person.2.fill",  value: "\(vehicle.passengerCapacity) seats")
-                    SpecPill(icon: "fuelpump.fill",   value: vehicle.fuelType.rawValue)
-
-                    Spacer()
-
-                    // Price — prominent
-                    VStack(alignment: .trailing, spacing: 0) {
+                    // Price
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(PriceCalculator.format(vehicle.dailyPrice))
-                            .font(.subheadline.bold())
-                            .foregroundStyle(Color.fallbackBlue)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(Color.fallbackNavy)
                         Text("/ day")
-                            .font(.system(size: 10))
+                            .font(.system(size: 13))
                             .foregroundStyle(.secondary)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, .spacingM)
-            .padding(.vertical, .spacingM)
+            .padding(.top, .spacingM)
+            .padding(.bottom, .spacingM)
+
+            // ── "View Details" button — full width, blue ─────────
+            NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
+                Text("View Details")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.fallbackBlue)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .padding(.horizontal, .spacingM)
+                    .padding(.bottom, .spacingM)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.fallbackCardBg)
-        .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusM))
-        .shadow(color: .black.opacity(0.07), radius: 8, x: 0, y: 3)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
     }
 }
 
-// MARK: - Spec Pill (only 2 shown — cleaner than 3)
+// MARK: - Spec Pill  (kept for other usages)
 struct SpecPill: View {
     let icon: String
     let value: String
@@ -104,13 +96,16 @@ struct SpecPill: View {
     }
 }
 
-// Keep the old SpecBadge name so other files that use it still compile
+// Backwards-compatibility alias
 typealias SpecBadge = SpecPill
 
 #Preview {
-    VStack(spacing: 12) {
-        VehicleCard(vehicle: Vehicle.sampleVehicles[0])
-        VehicleCard(vehicle: Vehicle.sampleVehicles[1])
+    ScrollView {
+        VStack(spacing: 16) {
+            VehicleCard(vehicle: Vehicle.sampleVehicles[0])
+            VehicleCard(vehicle: Vehicle.sampleVehicles[1])
+        }
+        .padding()
     }
-    .padding()
+    .background(Color(UIColor.systemGroupedBackground))
 }

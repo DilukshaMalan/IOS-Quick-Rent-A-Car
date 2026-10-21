@@ -41,7 +41,7 @@ struct ContentView: View {
                 }
                 .tag(Tab.ar)
 
-            StatsView()
+            VehicleStatsView()
                 .tabItem {
                     Label("Stats", systemImage: "chart.bar.fill")
                 }

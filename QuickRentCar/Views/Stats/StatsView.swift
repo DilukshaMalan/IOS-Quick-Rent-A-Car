@@ -1,3 +1,4 @@
+
 import SwiftUI
 import Charts
 
@@ -54,47 +55,47 @@ struct StatsView: View {
 }
 
 // MARK: - Total Distance Card
-struct TotalDistanceCard: View {
-    let totalKm: Double
-    let usedKm: Double
-    let includedKm: Int
-
-    var body: some View {
-        VStack(spacing: .spacingM) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Total Distance")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(String(format: "%.1f km", totalKm))
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(Color.fallbackNavy)
-                }
-                Spacer()
-                Image(systemName: "road.lanes.curved.left")
-                    .font(.title)
-                    .foregroundStyle(Color.fallbackBlue)
-            }
-
-            if includedKm > 0 {
-                VStack(spacing: .spacingXS) {
-                    HStack {
-                        Text("Mileage used")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(Int(usedKm)) / \(includedKm) km")
-                            .font(.caption.bold())
-                    }
-                    ProgressView(value: usedKm, total: Double(includedKm))
-                        .tint(usedKm / Double(includedKm) > 0.85 ? .orange : Color.fallbackBlue)
-                }
-            }
-        }
-        .padding()
-        .cardStyle()
-    }
-}
+//struct TotalDistanceCard: View {
+//    let totalKm: Double
+//    let usedKm: Double
+//    let includedKm: Int
+//
+//    var body: some View {
+//        VStack(spacing: .spacingM) {
+//            HStack {
+//                VStack(alignment: .leading) {
+//                    Text("Total Distance")
+//                        .font(.subheadline)
+//                        .foregroundStyle(.secondary)
+//                    Text(String(format: "%.1f km", totalKm))
+//                        .font(.largeTitle.bold())
+//                        .foregroundStyle(Color.fallbackNavy)
+//                }
+//                Spacer()
+//                Image(systemName: "road.lanes.curved.left")
+//                    .font(.title)
+//                    .foregroundStyle(Color.fallbackBlue)
+//            }
+//
+//            if includedKm > 0 {
+//                VStack(spacing: .spacingXS) {
+//                    HStack {
+//                        Text("Mileage used")
+//                            .font(.caption)
+//                            .foregroundStyle(.secondary)
+//                        Spacer()
+//                        Text("\(Int(usedKm)) / \(includedKm) km")
+//                            .font(.caption.bold())
+//                    }
+//                    ProgressView(value: usedKm, total: Double(includedKm))
+//                        .tint(usedKm / Double(includedKm) > 0.85 ? .orange : Color.fallbackBlue)
+//                }
+//            }
+//        }
+//        .padding()
+//        .cardStyle()
+//    }
+//}
 
 // MARK: - Distance Chart
 struct DistanceChartView: View {
@@ -130,57 +131,57 @@ struct DistanceChartView: View {
 }
 
 // MARK: - Speed Analytics
-struct SpeedAnalyticsView: View {
-    let averageSpeed: Double
-    let maxSpeed: Double
+//struct SpeedAnalyticsView: View {
+//    let averageSpeed: Double
+//    let maxSpeed: Double
+//
+//    var body: some View {
+//        VStack(alignment: .leading, spacing: .spacingM) {
+//            Text("Speed Analytics")
+//                .font(.headline)
+//                .foregroundStyle(Color.fallbackNavy)
+//
+//            HStack(spacing: .spacingM) {
+//                SpeedStat(label: "Average Speed", value: averageSpeed, icon: "speedometer", color: Color.fallbackBlue)
+//                SpeedStat(label: "Max Speed", value: maxSpeed, icon: "bolt.fill", color: .orange)
+//            }
+//        }
+//        .padding()
+//        .cardStyle()
+//    }
+//}
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacingM) {
-            Text("Speed Analytics")
-                .font(.headline)
-                .foregroundStyle(Color.fallbackNavy)
-
-            HStack(spacing: .spacingM) {
-                SpeedStat(label: "Average Speed", value: averageSpeed, icon: "speedometer", color: Color.fallbackBlue)
-                SpeedStat(label: "Max Speed", value: maxSpeed, icon: "bolt.fill", color: .orange)
-            }
-        }
-        .padding()
-        .cardStyle()
-    }
-}
-
-struct SpeedStat: View {
-    let label: String
-    let value: Double
-    let icon: String
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: .spacingS) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
-
-            Text(String(format: "%.1f", value))
-                .font(.title2.bold())
-                .foregroundStyle(Color.fallbackNavy)
-            +
-            Text(" km/h")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusM))
-    }
-}
+//struct SpeedStat: View {
+//    let label: String
+//    let value: Double
+//    let icon: String
+//    let color: Color
+//
+//    var body: some View {
+//        VStack(spacing: .spacingS) {
+//            Image(systemName: icon)
+//                .font(.title2)
+//                .foregroundStyle(color)
+//
+//            Text(String(format: "%.1f", value))
+//                .font(.title2.bold())
+//                .foregroundStyle(Color.fallbackNavy)
+//            +
+//            Text(" km/h")
+//                .font(.caption)
+//                .foregroundStyle(.secondary)
+//
+//            Text(label)
+//                .font(.caption)
+//                .foregroundStyle(.secondary)
+//                .multilineTextAlignment(.center)
+//        }
+//        .frame(maxWidth: .infinity)
+//        .padding()
+//        .background(color.opacity(0.08))
+//        .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusM))
+//    }
+//}
 
 #Preview {
     StatsView()

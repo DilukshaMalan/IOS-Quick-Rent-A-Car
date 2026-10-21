@@ -9,6 +9,8 @@ struct DriverLicenseScanView: View {
     @StateObject private var viewModel = LicenseOCRViewModel()
     @State private var showCamera = false
     @State private var wantsNewScan = false
+    @State private var imageSource: UIImagePickerController.SourceType = .camera
+    @State private var showSourceChoice = false
 
     // MARK: - Saved license
     private struct SavedLicense {
@@ -96,9 +98,24 @@ struct DriverLicenseScanView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showCamera) {
-            LicenseCameraView { image in
+            LicenseCameraView(sourceType: imageSource) { image in
                 Task { await viewModel.processImage(image) }
             }
+        }
+        .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button("Take Photo") {
+                    imageSource = .camera
+                    showCamera = true
+                }
+            }
+            if UIImagePickerController.isSourceTypeAvailable(.photoLibrary) {
+                Button("Choose from Library") {
+                    imageSource = .photoLibrary
+                    showCamera = true
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .navigationDestination(isPresented: $bookingViewModel.bookingSuccess) {
             BookingSuccessView(
@@ -151,12 +168,8 @@ struct DriverLicenseScanView: View {
 
     // MARK: - Actions
     private func startScanning() {
-        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            viewModel.errorMessage = "Camera isn't available on this device."
-            return
-        }
-        viewModel.errorMessage = nil
-        showCamera = true
+        // Present source choice dialog
+        showSourceChoice = true
     }
 
     /// Saved license: nothing to store, just create the booking.

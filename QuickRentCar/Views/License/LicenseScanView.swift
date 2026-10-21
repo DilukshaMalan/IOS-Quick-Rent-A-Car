@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit // needed for UIImagePickerController.SourceType
 import AVFoundation
 
 struct LicenseScanView: View {
@@ -6,6 +7,8 @@ struct LicenseScanView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = LicenseOCRViewModel()
     @State private var showCamera = false
+    @State private var imageSource: UIImagePickerController.SourceType = .camera
+    @State private var showSourceChoice = false
 
     var body: some View {
         NavigationStack {
@@ -61,10 +64,25 @@ struct LicenseScanView: View {
                         Spacer()
 
                         Button {
-                            showCamera = true
+                            showSourceChoice = true
                         } label: {
                             Label("Open Camera", systemImage: "camera.fill")
                                 .primaryButtonStyle()
+                        }
+                        .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
+                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                Button("Take Photo") {
+                                    imageSource = .camera
+                                    showCamera = true
+                                }
+                            }
+                            if UIImagePickerController.isSourceTypeAvailable(.photoLibrary) {
+                                Button("Choose from Library") {
+                                    imageSource = .photoLibrary
+                                    showCamera = true
+                                }
+                            }
+                            Button("Cancel", role: .cancel) {}
                         }
                         .padding(.horizontal, .spacingL)
                         .padding(.bottom, .spacingXL)
@@ -79,7 +97,7 @@ struct LicenseScanView: View {
                 }
             }
             .sheet(isPresented: $showCamera) {
-                LicenseCameraView { image in
+                LicenseCameraView(sourceType: imageSource) { image in
                     Task { await viewModel.processImage(image) }
                 }
             }
@@ -162,12 +180,15 @@ struct ReadOnlyField: View {
 
 // MARK: - Camera View (UIKit wrapper)
 struct LicenseCameraView: UIViewControllerRepresentable {
+    let sourceType: UIImagePickerController.SourceType
     let onCapture: (UIImage) -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.cameraCaptureMode = .photo
+        picker.sourceType = sourceType
+        if sourceType == .camera {
+            picker.cameraCaptureMode = .photo
+        }
         picker.delegate = context.coordinator
         return picker
     }

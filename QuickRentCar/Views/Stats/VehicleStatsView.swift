@@ -4,61 +4,78 @@ import MapKit
 struct VehicleStatsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = VehicleStatsViewModel()
-    @State private var region = MKCoordinateRegion()
-    
+    @State private var showVehicleInfo = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: .spacingL) {
-                    
+
+                    // MARK: - Vehicle number
+                    if let vehicleNumber = viewModel.vehicleId {
+                        VehicleInfoHeader(vehicleNumber: vehicleNumber, rentalId: viewModel.rentalId)
+                            .padding(.horizontal)
+                    }
+
                     // MARK: - Map Preview
-                    if let location = viewModel.lastKnownLocation {
-                        Map(coordinateRegion: $region,
-                            interactionModes: .all,
-                            showsUserLocation: false,
-                            userTrackingMode: .none,
-                            annotationItems: [location]) { loc in
-                            MapMarker(coordinate: CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude), tint: .blue)
-                        }
-                        .frame(height: 200)
-                        .cornerRadius(.cornerRadiusM)
-                        .onAppear {
-                            region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude), span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
-                        }
-                    } else {
-                        ContentUnavailableView("No location", systemImage: "location.slash")
-                            .frame(height: 200)
-                    }
-                    
+                    mapSection
+
                     // MARK: - Period Selector
-                    Picker("Period", selection: $viewModel.selectedPeriod) {
-                        ForEach(VehicleStatsViewModel.Period.allCases, id: \.self) { period in
-                            Text(period.rawValue).tag(period)
+                    VStack(spacing: .spacingS) {
+                        Picker("Period", selection: $viewModel.selectedPeriod) {
+                            ForEach(VehicleStatsViewModel.Period.allCases, id: \.self) { period in
+                                Text(period.shortTitle).tag(period)
+                            }
                         }
+                        .pickerStyle(.segmented)
+
+                        Label(viewModel.periodDescription, systemImage: "calendar")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .pickerStyle(.segmented)
                     .padding(.horizontal)
-                    
+
+                    // MARK: - Custom range
+                    if viewModel.selectedPeriod == .custom,
+                       let available = viewModel.availableDateRange {
+                        CustomRangeCard(
+                            start: $viewModel.customStart,
+                            end: $viewModel.customEnd,
+                            available: available,
+                            timeZone: VehicleStatsViewModel.displayTimeZone
+                        )
+                        .padding(.horizontal)
+                    }
+
                     // MARK: - Summary Cards
-                    TotalDistanceCard(totalKm: viewModel.packageAllowanceKm,
+                    TotalDistanceCard(totalKm: viewModel.periodStats.distanceKm,
                                       usedKm: viewModel.usedKm,
                                       includedKm: Int(viewModel.packageAllowanceKm))
                         .padding(.horizontal)
-                    
+
                     SpeedAnalyticsView(averageSpeed: viewModel.periodStats.averageSpeedKmh,
-                                        maxSpeed: viewModel.periodStats.maxSpeedKmh)
+                                       maxSpeed: viewModel.periodStats.maxSpeedKmh)
                         .padding(.horizontal)
-                    
+
                     // MARK: - Journey Replay Navigation
-                    NavigationLink(destination: JourneyReplayView()) {
-                        Text("Journey Replay")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.fallbackBlue)
-                            .foregroundColor(.white)
-                            .cornerRadius(.cornerRadiusM)
+                    NavigationLink(destination: JourneyReplayView(viewModel: viewModel)) {
+                        VStack(spacing: 2) {
+                            Text("Journey Replay")
+                                .font(.headline)
+                            Text(viewModel.replayPoints.isEmpty
+                                 ? "No journeys in this period"
+                                 : "\(viewModel.periodDescription) · \(viewModel.replayTrips.count) trip\(viewModel.replayTrips.count == 1 ? "" : "s")")
+                                .font(.caption)
+                                .opacity(0.85)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.fallbackBlue)
+                        .foregroundColor(.white)
+                        .cornerRadius(.cornerRadiusM)
                     }
+                    .disabled(viewModel.replayPoints.isEmpty)
+                    .opacity(viewModel.replayPoints.isEmpty ? 0.5 : 1)
                     .padding(.horizontal)
                 }
                 .padding(.vertical)
@@ -69,14 +86,47 @@ struct VehicleStatsView: View {
             }
         }
     }
+
+    // MARK: - Map
+    @ViewBuilder
+    private var mapSection: some View {
+        if let location = viewModel.lastKnownLocation {
+            let coordinate = CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude)
+
+            Map(initialPosition: .region(
+                MKCoordinateRegion(
+                    center: coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                )
+            )) {
+                Annotation("", coordinate: coordinate) {
+                    VehicleMapMarker(
+                        vehicleNumber: viewModel.vehicleId ?? "Vehicle",
+                        speedKmh: viewModel.lastKnownPoint?.speedKmh,
+                        engineOn: viewModel.lastKnownPoint?.engineOn,
+                        isSelected: $showVehicleInfo
+                    )
+                }
+            }
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusM))
+            .padding(.horizontal)
+        } else if viewModel.isLoading {
+            ProgressView("Loading telemetry...")
+                .frame(height: 200)
+        } else {
+            ContentUnavailableView(viewModel.errorMessage ?? "No location", systemImage: "location.slash")
+                .frame(height: 200)
+        }
+    }
 }
 
-// MARK: - Total Distance Card (re‑used from old StatsView)
+// MARK: - Total Distance Card (re-used from old StatsView)
 struct TotalDistanceCard: View {
     let totalKm: Double
     let usedKm: Double
     let includedKm: Int
-    
+
     var body: some View {
         VStack(spacing: .spacingM) {
             HStack {
@@ -113,11 +163,11 @@ struct TotalDistanceCard: View {
     }
 }
 
-// MARK: - Speed Analytics (re‑used)
+// MARK: - Speed Analytics (re-used)
 struct SpeedAnalyticsView: View {
     let averageSpeed: Double
     let maxSpeed: Double
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: .spacingM) {
             Text("Speed Analytics")
@@ -138,7 +188,7 @@ struct SpeedStat: View {
     let value: Double
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: .spacingS) {
             Image(systemName: icon)

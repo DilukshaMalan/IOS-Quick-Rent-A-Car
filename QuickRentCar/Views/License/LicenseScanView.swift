@@ -1,20 +1,26 @@
 import SwiftUI
-import UIKit // needed for UIImagePickerController.SourceType
+import UIKit
 import AVFoundation
+
+// MARK: - Which side are we picking?
+private enum LicenseSide { case front, rear }
 
 struct LicenseScanView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = LicenseOCRViewModel()
-    @State private var showCamera = false
-    @State private var imageSource: UIImagePickerController.SourceType = .camera
+
+    // Source picker state
+    @State private var activeSide: LicenseSide = .front
     @State private var showSourceChoice = false
+    @State private var showPicker = false
+    @State private var imageSource: UIImagePickerController.SourceType = .camera
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: .spacingXL) {
+            Group {
                 if viewModel.scanComplete, let info = viewModel.extractedInfo {
-                    // MARK: - Scan Result
+                    // ── Step 3: Review results ──────────────────────────────
                     LicenseConfirmView(
                         info: info,
                         onSave: {
@@ -28,82 +34,197 @@ struct LicenseScanView: View {
                         onRescan: { viewModel.reset() }
                     )
                 } else {
-                    // MARK: - Scan Prompt
-                    VStack(spacing: .spacingL) {
-                        Spacer()
-
-                        Image(systemName: "creditcard.viewfinder")
-                            .font(.system(size: 80))
-                            .foregroundStyle(Color.fallbackBlue)
-
-                        VStack(spacing: .spacingS) {
-                            Text("Scan Your License")
-                                .font(.title2.bold())
-                                .foregroundStyle(Color.fallbackNavy)
-
-                            Text("Position your driver's license in the camera frame. We'll extract your details automatically.")
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-
-                        if viewModel.isScanning {
+                    // ── Step 1 & 2: Capture both sides ─────────────────────
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: .spacingL) {
+                            // Header
                             VStack(spacing: .spacingS) {
-                                ProgressView()
-                                Text("Scanning license…")
+                                Image(systemName: "creditcard.viewfinder")
+                                    .font(.system(size: 64))
+                                    .foregroundStyle(Color.fallbackBlue)
+                                Text("Scan Your Licence")
+                                    .font(.title2.bold())
+                                    .foregroundStyle(Color.fallbackNavy)
+                                Text("Add photos of both sides, then tap **Scan Licence** to extract your details.")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
                             }
-                        }
+                            .padding(.top, .spacingL)
 
-                        if let error = viewModel.errorMessage {
-                            Text(error).font(.caption).foregroundStyle(.red)
-                        }
+                            // ── Front card ─────────────────────────────────
+                            SidePickerCard(
+                                title: "Front Side",
+                                subtitle: "Name • Licence Number • Date of Birth",
+                                systemIcon: "person.text.rectangle",
+                                image: viewModel.frontImage
+                            ) {
+                                activeSide = .front
+                                showSourceChoice = true
+                            }
 
-                        Spacer()
+                            // ── Rear card ──────────────────────────────────
+                            SidePickerCard(
+                                title: "Rear Side",
+                                subtitle: "Expiry Date",
+                                systemIcon: "calendar.badge.clock",
+                                image: viewModel.rearImage
+                            ) {
+                                activeSide = .rear
+                                showSourceChoice = true
+                            }
 
-                        Button {
-                            showSourceChoice = true
-                        } label: {
-                            Label("Open Camera", systemImage: "camera.fill")
-                                .primaryButtonStyle()
-                        }
-                        .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
-                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                                Button("Take Photo") {
-                                    imageSource = .camera
-                                    showCamera = true
+                            // Error message
+                            if let error = viewModel.errorMessage {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
+
+                            // ── Scan button (enabled once both sides chosen) ─
+                            if viewModel.isScanning {
+                                VStack(spacing: .spacingS) {
+                                    ProgressView()
+                                    Text("Scanning licence…")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
-                            }
-                            if UIImagePickerController.isSourceTypeAvailable(.photoLibrary) {
-                                Button("Choose from Library") {
-                                    imageSource = .photoLibrary
-                                    showCamera = true
+                                .padding(.top, .spacingS)
+                            } else {
+                                Button {
+                                    Task { await viewModel.processBothSides() }
+                                } label: {
+                                    Label("Scan Licence", systemImage: "wand.and.stars")
+                                        .primaryButtonStyle()
                                 }
+                                .disabled(!viewModel.readyToScan)
+                                .opacity(viewModel.readyToScan ? 1 : 0.45)
+                                .padding(.horizontal, .spacingL)
                             }
-                            Button("Cancel", role: .cancel) {}
+
+                            Spacer(minLength: .spacingXL)
                         }
-                        .padding(.horizontal, .spacingL)
                         .padding(.bottom, .spacingXL)
                     }
                 }
             }
-            .navigationTitle("Driver License")
+            .navigationTitle("Driver Licence")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Close") { dismiss() }
                 }
             }
-            .sheet(isPresented: $showCamera) {
+            // Source-choice action sheet
+            .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button("Take Photo") {
+                        imageSource = .camera
+                        showPicker = true
+                    }
+                }
+                if UIImagePickerController.isSourceTypeAvailable(.photoLibrary) {
+                    Button("Choose from Library") {
+                        imageSource = .photoLibrary
+                        showPicker = true
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            // Image picker sheet
+            .sheet(isPresented: $showPicker) {
                 LicenseCameraView(sourceType: imageSource) { image in
-                    Task { await viewModel.processImage(image) }
+                    if activeSide == .front {
+                        viewModel.frontImage = image
+                    } else {
+                        viewModel.rearImage = image
+                    }
                 }
             }
         }
     }
 }
+
+// MARK: - Side Picker Card
+private struct SidePickerCard: View {
+    let title: String
+    let subtitle: String
+    let systemIcon: String
+    let image: UIImage?
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.secondarySystemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(
+                                image != nil ? Color.fallbackBlue : Color.gray.opacity(0.3),
+                                lineWidth: image != nil ? 2 : 1
+                            )
+                    )
+
+                if let captured = image {
+                    // Show the chosen image
+                    Image(uiImage: captured)
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                        .overlay(alignment: .topTrailing) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.white, Color.fallbackBlue)
+                                .font(.title3)
+                                .padding(10)
+                        }
+                        .overlay(alignment: .bottom) {
+                            // Tap-to-retake label
+                            Text("Tap to retake")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.white)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity)
+                                .background(.black.opacity(0.45))
+                                .clipShape(
+                                    .rect(
+                                        bottomLeadingRadius: 15,
+                                        bottomTrailingRadius: 15
+                                    )
+                                )
+                        }
+                } else {
+                    // Placeholder
+                    VStack(spacing: .spacingS) {
+                        Image(systemName: systemIcon)
+                            .font(.system(size: 36))
+                            .foregroundStyle(Color.fallbackBlue.opacity(0.7))
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(Color.fallbackNavy)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Label("Add Photo", systemImage: "plus.circle")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(Color.fallbackBlue)
+                            .padding(.top, 2)
+                    }
+                    .padding(.vertical, .spacingL)
+                    .padding(.horizontal)
+                }
+            }
+            .frame(height: 200)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, .spacingL)
+    }
+}
+
 
 // MARK: - Confirm Extracted Fields
 struct LicenseConfirmView: View {
@@ -180,7 +301,8 @@ struct ReadOnlyField: View {
 
 // MARK: - Camera View (UIKit wrapper)
 struct LicenseCameraView: UIViewControllerRepresentable {
-    let sourceType: UIImagePickerController.SourceType
+    /// Defaults to the camera, so callers that only pass `onCapture` (like the booking license page) still compile.
+    var sourceType: UIImagePickerController.SourceType = .camera
     let onCapture: (UIImage) -> Void
 
     func makeUIViewController(context: Context) -> UIImagePickerController {

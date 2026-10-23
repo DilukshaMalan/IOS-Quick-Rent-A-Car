@@ -1,10 +1,90 @@
 import Foundation
+import UIKit
 
-extension LicenseOCRViewModel {
-    /// Saves the scanned license number/expiry onto a copy of the *existing* user profile and
-    /// returns the updated user (nil on failure). Unlike `saveLicenseInfo(userId:)`, this keeps
-    /// the user's email, phone number, createdAt, Face ID setting etc. untouched.
-    @discardableResult
+@MainActor
+class LicenseOCRViewModel: ObservableObject {
+
+    // MARK: - Two-side capture
+    @Published var frontImage: UIImage?
+    @Published var rearImage: UIImage?
+
+    // Legacy single-image capture (kept for DriverLicenseScanView compatibility)
+    @Published var capturedImage: UIImage?
+
+    @Published var extractedInfo: LicenseInfo?
+    @Published var isScanning = false
+    @Published var isSaving = false
+    @Published var errorMessage: String?
+    @Published var scanComplete = false
+
+    /// True once both sides have been selected and we're ready to scan.
+    var readyToScan: Bool { frontImage != nil && rearImage != nil }
+
+    private let ocrService = VisionOCRService.shared
+    private let firestoreService = FirestoreService.shared
+
+    // MARK: - Two-side scan (front: name/number/DOB  |  rear: expiry)
+    func processBothSides() async {
+        guard let front = frontImage, let rear = rearImage else {
+            errorMessage = "Please select both the front and rear of your licence."
+            return
+        }
+        isScanning = true
+        errorMessage = nil
+
+        do {
+            async let frontInfo = ocrService.extractFrontInfo(from: front)
+            async let expiryDate = ocrService.extractExpiryDate(from: rear)
+
+            var info = try await frontInfo
+            info.expiryDate = try await expiryDate
+            extractedInfo = info
+            scanComplete = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isScanning = false
+    }
+
+    // MARK: - Single-image scan (legacy / booking flow)
+    func processImage(_ image: UIImage) async {
+        capturedImage = image
+        isScanning = true
+        errorMessage = nil
+
+        do {
+            let info = try await ocrService.extractLicenseInfo(from: image)
+            extractedInfo = info
+            scanComplete = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isScanning = false
+    }
+
+    // MARK: - Save to Profile
+    func saveLicenseInfo(userId: String) async {
+        guard let info = extractedInfo else { return }
+        isSaving = true
+
+        do {
+            let user = User(
+                id: userId,
+                email: "",
+                fullName: info.fullName,
+                licenseNumber: info.licenseNumber,
+                licenseExpiry: info.expiryDate
+            )
+            try await firestoreService.updateUser(user)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isSaving = false
+    }
+
     func saveLicense(merging user: User) async -> User? {
         guard let info = extractedInfo else { return nil }
         isSaving = true
@@ -22,5 +102,15 @@ extension LicenseOCRViewModel {
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    // MARK: - Reset
+    func reset() {
+        frontImage = nil
+        rearImage = nil
+        capturedImage = nil
+        extractedInfo = nil
+        scanComplete = false
+        errorMessage = nil
     }
 }

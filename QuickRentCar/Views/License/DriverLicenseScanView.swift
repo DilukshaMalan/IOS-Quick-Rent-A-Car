@@ -1,195 +1,363 @@
 import SwiftUI
+import UIKit
 
-/// Booking step 2: use the saved license or scan one, then confirm the booking.
-/// Reuses `LicenseOCRViewModel` and `LicenseCameraView` from the existing license code.
+// MARK: - Two‑Side Driver License Scan for Booking
+private enum LicenseSide { case front, rear }
+
 struct DriverLicenseScanView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var authViewModel: AuthViewModel
     @ObservedObject var bookingViewModel: BookingViewModel
     @StateObject private var viewModel = LicenseOCRViewModel()
-    @State private var showCamera = false
-    @State private var wantsNewScan = false
-    @State private var imageSource: UIImagePickerController.SourceType = .camera
+
+    // Image selection state
+    @State private var activeSide: LicenseSide = .front
     @State private var showSourceChoice = false
-
-    // MARK: - Saved license
-    private struct SavedLicense {
-        let number: String
-        let expiry: Date
-        var masked: String { "•••• " + number.suffix(4) }
-    }
-
-    /// A saved license is offered only if it is still valid on the day the car is returned.
-    private var savedLicense: SavedLicense? {
-        guard let user = authViewModel.currentUser,
-              let number = user.licenseNumber, number.isNotEmpty,
-              let expiry = user.licenseExpiry,
-              expiry >= bookingViewModel.returnDate
-        else { return nil }
-        return SavedLicense(number: number, expiry: expiry)
-    }
-
-    private var showingSavedLicense: Bool {
-        savedLicense != nil && !wantsNewScan && !viewModel.scanComplete && !viewModel.isScanning
-    }
-
-    // MARK: - State helpers
-    private var isWorking: Bool {
-        viewModel.isScanning || viewModel.isSaving || bookingViewModel.isLoading
-    }
-
-    private var infoBinding: Binding<LicenseInfo> {
-        Binding(
-            get: { viewModel.extractedInfo ?? LicenseInfo() },
-            set: { viewModel.extractedInfo = $0 }
-        )
-    }
-
-    /// Confirm is allowed only with a license number and a license that has not expired.
-    private var canConfirm: Bool {
-        guard let info = viewModel.extractedInfo else { return false }
-        return info.licenseNumber.isNotEmpty && !info.isExpired && !isWorking
-    }
-
-    private var errorText: String? {
-        viewModel.errorMessage ?? bookingViewModel.errorMessage
-    }
-
-    private var confirmTitle: String {
-        "Confirm Booking – \(PriceCalculator.format(bookingViewModel.totalPrice))"
-    }
+    @State private var showPicker = false
+    @State private var imageSource: UIImagePickerController.SourceType = .camera
+    @State private var navigateToSuccess = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            LicenseScanHeader(
-                title: showingSavedLicense ? "Driver's License" : "Scan Driver's License",
-                subtitle: "Step 2 of 2"
-            ) {
-                dismiss()
-            }
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: .spacingL) {
+                // Step indicator
+                BookingStepIndicator(step: 2, total: 2, title: "Driver's Licence")
+                    .padding(.horizontal, .spacingL)
+                    .padding(.top, .spacingM)
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: .spacingL) {
-                    if showingSavedLicense, let saved = savedLicense {
-                        SavedLicenseCard(maskedNumber: saved.masked, expiry: saved.expiry)
-                    } else if viewModel.scanComplete {
-                        LicenseReviewCard(info: infoBinding)
-                    } else {
-                        LicenseScanFrameCard(isScanning: viewModel.isScanning)
-                        LicenseFeatureList()
+                if viewModel.scanComplete, let info = viewModel.extractedInfo {
+                    // ── Step 3: Review & confirm extracted details ──────
+                    BookingLicenseConfirmView(
+                        info: info,
+                        bookingViewModel: bookingViewModel,
+                        isWorking: viewModel.isSaving || bookingViewModel.isLoading,
+                        errorMessage: bookingViewModel.errorMessage ?? viewModel.errorMessage,
+                        onConfirm: { Task { await confirmWithScannedLicense() } },
+                        onRescan: { viewModel.reset() }
+                    )
+                } else {
+                    // ── Step 1 & 2: Capture both sides ─────────────────
+                    VStack(spacing: .spacingL) {
+                        VStack(spacing: .spacingS) {
+                            Image(systemName: "person.text.rectangle")
+                                .font(.system(size: 64))
+                                .foregroundStyle(Color.fallbackBlue)
+                            Text("Scan Your Licence")
+                                .font(.title2.bold())
+                                .foregroundStyle(Color.fallbackNavy)
+                            Text("Add photos of both sides, then tap **Scan Licence** to extract your details.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+
+                        // Front card
+                        SidePickerCard(title: "Front Side",
+                                       subtitle: "Name • Licence Number • DOB",
+                                       systemIcon: "person.text.rectangle",
+                                       image: viewModel.frontImage) {
+                            activeSide = .front; showSourceChoice = true
+                        }
+
+                        // Rear card
+                        SidePickerCard(title: "Rear Side",
+                                       subtitle: "Expiry Date",
+                                       systemIcon: "calendar.badge.clock",
+                                       image: viewModel.rearImage) {
+                            activeSide = .rear; showSourceChoice = true
+                        }
+
+                        // Scan OCR errors
+                        if let error = viewModel.errorMessage {
+                            Label(error, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+
+                        // Scan button
+                        if viewModel.isScanning {
+                            VStack(spacing: .spacingS) {
+                                ProgressView()
+                                Text("Reading licence…")
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                            }
                             .padding(.top, .spacingS)
-                    }
-
-                    if let errorText {
-                        Text(errorText)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
+                        } else {
+                            Button { Task { await viewModel.processBothSides() } } label: {
+                                Label("Scan Licence", systemImage: "wand.and.stars")
+                                    .primaryButtonStyle()
+                            }
+                            .disabled(!viewModel.readyToScan)
+                            .opacity(viewModel.readyToScan ? 1 : 0.45)
+                            .padding(.horizontal, .spacingL)
+                        }
                     }
                 }
-                .padding(.horizontal, .spacingL)
-                .padding(.top, .spacingM)
-                .padding(.bottom, .spacingL)
             }
+            .padding(.bottom, .spacingXXL)
         }
-        .background(Color.scanBackground.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom) { bottomActions }
-        .preferredColorScheme(.dark)
-        .navigationBarBackButtonHidden()
-        .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showCamera) {
-            LicenseCameraView(sourceType: imageSource) { image in
-                Task { await viewModel.processImage(image) }
-            }
-        }
+        .navigationTitle("Driver Licence")
+        .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button("Take Photo") {
-                    imageSource = .camera
-                    showCamera = true
-                }
+                Button("Take Photo") { imageSource = .camera; showPicker = true }
             }
             if UIImagePickerController.isSourceTypeAvailable(.photoLibrary) {
-                Button("Choose from Library") {
-                    imageSource = .photoLibrary
-                    showCamera = true
-                }
+                Button("Choose from Library") { imageSource = .photoLibrary; showPicker = true }
             }
             Button("Cancel", role: .cancel) {}
         }
-        .navigationDestination(isPresented: $bookingViewModel.bookingSuccess) {
-            BookingSuccessView(
-                vehicleName: bookingViewModel.vehicle.name,
-                bookingId: bookingViewModel.confirmedBookingId ?? ""
-            )
-        }
-    }
-
-    // MARK: - Bottom buttons
-    private var bottomActions: some View {
-        VStack(spacing: .spacingS) {
-            if showingSavedLicense {
-                ScanPrimaryButton(
-                    title: confirmTitle,
-                    isLoading: bookingViewModel.isLoading,
-                    isEnabled: true
-                ) {
-                    Task { await confirmWithSavedLicense() }
-                }
-
-                ScanSecondaryButton(title: "Scan a different license") { wantsNewScan = true }
-                    .disabled(isWorking)
-            } else if viewModel.scanComplete {
-                ScanPrimaryButton(
-                    title: confirmTitle,
-                    isLoading: viewModel.isSaving || bookingViewModel.isLoading,
-                    isEnabled: canConfirm
-                ) {
-                    Task { await confirmWithScannedLicense() }
-                }
-
-                ScanSecondaryButton(title: "Rescan") { viewModel.reset() }
-                    .disabled(isWorking)
-            } else {
-                ScanPrimaryButton(
-                    title: "Start Scanning",
-                    isLoading: viewModel.isScanning,
-                    isEnabled: !viewModel.isScanning
-                ) {
-                    startScanning()
-                }
+        .sheet(isPresented: $showPicker) {
+            LicenseCameraView(sourceType: imageSource) { image in
+                if activeSide == .front { viewModel.frontImage = image } else { viewModel.rearImage = image }
             }
         }
-        .padding(.horizontal, .spacingL)
-        .padding(.top, .spacingS)
-        .padding(.bottom, .spacingS)
-        .background(Color.scanBackground)
+        // Navigate to success screen when booking confirmed
+        .navigationDestination(isPresented: $navigateToSuccess) {
+            BookingSuccessView(
+                vehicleName: bookingViewModel.vehicle.name,
+                bookingId: bookingViewModel.confirmedBookingId ?? "",
+                pickupDate: bookingViewModel.pickupDate,
+                returnDate: bookingViewModel.returnDate,
+                pickupLocation: bookingViewModel.pickupLocation,
+                totalPrice: bookingViewModel.totalPrice
+            )
+        }
+        .onChange(of: bookingViewModel.bookingSuccess) { _, success in
+            if success { navigateToSuccess = true }
+        }
     }
 
     // MARK: - Actions
-    private func startScanning() {
-        // Present source choice dialog
-        showSourceChoice = true
-    }
-
-    /// Saved license: nothing to store, just create the booking.
-    private func confirmWithSavedLicense() async {
-        guard let userId = authViewModel.currentUser?.id else {
-            viewModel.errorMessage = "Please sign in again to confirm your booking."
-            return
-        }
-        await bookingViewModel.confirmBooking(userId: userId)
-    }
-
-    /// New scan: 1) save the license onto the profile  2) create the booking.
     private func confirmWithScannedLicense() async {
         guard let user = authViewModel.currentUser, let userId = user.id else {
             viewModel.errorMessage = "Please sign in again to confirm your booking."
             return
         }
         guard let updatedUser = await viewModel.saveLicense(merging: user) else { return }
-        authViewModel.currentUser = updatedUser   // so the next booking can reuse this license
+        authViewModel.currentUser = updatedUser
         await bookingViewModel.confirmBooking(userId: userId)
+    }
+}
+
+// MARK: - Booking Confirm View (shown after OCR, before placing the order)
+private struct BookingLicenseConfirmView: View {
+    @State var info: LicenseInfo
+    let bookingViewModel: BookingViewModel
+    let isWorking: Bool
+    let errorMessage: String?
+    let onConfirm: () -> Void
+    let onRescan: () -> Void
+
+    var body: some View {
+        VStack(spacing: .spacingL) {
+            // ── Scan success header ──────────────────────────────────────────
+            VStack(spacing: .spacingS) {
+                ZStack {
+                    Circle()
+                        .fill(Color.fallbackBlue.opacity(0.12))
+                        .frame(width: 90, height: 90)
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 52))
+                        .foregroundStyle(Color.fallbackBlue)
+                }
+                Text("Licence Verified ✓")
+                    .font(.title2.bold())
+                    .foregroundStyle(Color.fallbackNavy)
+                Text("Review your details before placing the order.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, .spacingS)
+
+            // ── Extracted licence fields ─────────────────────────────────────
+            VStack(alignment: .leading, spacing: .spacingM) {
+                sectionTitle("Licence Details")
+                ConfirmRow(icon: "person.fill",         label: "Full Name",       value: info.fullName.isEmpty ? "—" : info.fullName)
+                ConfirmRow(icon: "creditcard.fill",     label: "Licence Number",  value: info.licenseNumber.isEmpty ? "—" : info.licenseNumber)
+                ConfirmRow(icon: "calendar",            label: "Date of Birth",   value: info.formattedDateOfBirth.isEmpty ? "—" : info.formattedDateOfBirth)
+                ConfirmRow(icon: "calendar.badge.clock",label: "Expiry Date",     value: info.formattedExpiryDate.isEmpty ? "—" : info.formattedExpiryDate,
+                           isWarning: info.isExpired)
+            }
+            .padding(.spacingL)
+            .cardStyle()
+            .padding(.horizontal, .spacingL)
+
+            // ── Trip summary card ────────────────────────────────────────────
+            VStack(alignment: .leading, spacing: .spacingM) {
+                sectionTitle("Booking Summary")
+                ConfirmRow(icon: "car.fill",        label: "Vehicle",      value: bookingViewModel.vehicle.name)
+                ConfirmRow(icon: "mappin.circle",   label: "Pick-up",      value: bookingViewModel.pickupLocation)
+                ConfirmRow(icon: "mappin.and.ellipse", label: "Drop-off",  value: bookingViewModel.dropOffLocation)
+                ConfirmRow(icon: "clock",           label: "Pick-up Date", value: bookingViewModel.pickupDate.displayDate)
+                ConfirmRow(icon: "clock.arrow.circlepath", label: "Return", value: bookingViewModel.returnDate.displayDate)
+                Divider()
+                HStack {
+                    Text("Total")
+                        .font(.headline)
+                        .foregroundStyle(Color.fallbackNavy)
+                    Spacer()
+                    Text(PriceCalculator.format(bookingViewModel.totalPrice))
+                        .font(.title3.bold())
+                        .foregroundStyle(Color.fallbackBlue)
+                }
+            }
+            .padding(.spacingL)
+            .cardStyle()
+            .padding(.horizontal, .spacingL)
+
+            // ── Expired warning ──────────────────────────────────────────────
+            if info.isExpired {
+                Label("Your licence appears to be expired and cannot be used for a booking.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.white)
+                    .padding(.spacingM)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, .spacingL)
+            }
+
+            // ── Booking error ────────────────────────────────────────────────
+            if let error = errorMessage {
+                Label(error, systemImage: "xmark.octagon.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.white)
+                    .padding(.spacingM)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red.opacity(0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, .spacingL)
+            }
+
+            // ── Action buttons ───────────────────────────────────────────────
+            VStack(spacing: .spacingS) {
+                Button(action: onConfirm) {
+                    Group {
+                        if isWorking {
+                            HStack(spacing: 10) {
+                                ProgressView().tint(.white)
+                                Text("Placing Order…")
+                            }
+                        } else {
+                            Label("Confirm & Place Order", systemImage: "checkmark.seal.fill")
+                        }
+                    }
+                    .primaryButtonStyle()
+                }
+                .disabled(isWorking || info.isExpired)
+                .opacity((isWorking || info.isExpired) ? 0.55 : 1)
+                .padding(.horizontal, .spacingL)
+
+                Button(action: onRescan) {
+                    Label("Rescan Licence", systemImage: "arrow.counterclockwise")
+                        .secondaryButtonStyle()
+                }
+                .padding(.horizontal, .spacingL)
+                .disabled(isWorking)
+            }
+        }
+        .padding(.bottom, .spacingXXL)
+    }
+
+    @ViewBuilder
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+    }
+}
+
+/// A single labelled row inside a confirm card.
+private struct ConfirmRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    var isWarning = false
+
+    var body: some View {
+        HStack(spacing: .spacingM) {
+            Image(systemName: icon)
+                .frame(width: 22)
+                .foregroundStyle(isWarning ? .orange : Color.fallbackBlue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isWarning ? .orange : Color.fallbackNavy)
+            }
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Side Picker Card (re‑used from LicenseScanView)
+private struct SidePickerCard: View {
+    let title: String
+    let subtitle: String
+    let systemIcon: String
+    let image: UIImage?
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.secondarySystemBackground))
+                    .overlay(RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(image != nil ? Color.fallbackBlue : Color.gray.opacity(0.3), lineWidth: image != nil ? 2 : 1))
+                if let captured = image {
+                    Image(uiImage: captured)
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                        .overlay(alignment: .topTrailing) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.white, Color.fallbackBlue)
+                                .font(.title3)
+                                .padding(10)
+                        }
+                        .overlay(alignment: .bottom) {
+                            Text("Tap to retake")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.white)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity)
+                                .background(.black.opacity(0.45))
+                                .clipShape(.rect(bottomLeadingRadius: 15, bottomTrailingRadius: 15))
+                        }
+                } else {
+                    VStack(spacing: .spacingS) {
+                        Image(systemName: systemIcon)
+                            .font(.system(size: 36))
+                            .foregroundStyle(Color.fallbackBlue.opacity(0.7))
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(Color.fallbackNavy)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Label("Add Photo", systemImage: "plus.circle")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(Color.fallbackBlue)
+                            .padding(.top, 2)
+                    }
+                    .padding(.vertical, .spacingL)
+                    .padding(.horizontal)
+                }
+            }
+            .frame(height: 200)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, .spacingL)
     }
 }
 

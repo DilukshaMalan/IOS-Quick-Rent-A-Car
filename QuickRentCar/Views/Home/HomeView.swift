@@ -3,12 +3,13 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = HomeViewModel()
+    @State private var navPath = NavigationPath()
 
     // Used to scroll to results section after search is triggered
     private enum ScrollAnchor: String { case results }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -214,6 +215,9 @@ struct HomeView: View {
             .background(Color(UIColor.systemGroupedBackground))
             .refreshable { await viewModel.loadVehicles() }
             .task { await viewModel.loadVehicles() }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateToHome)) { _ in
+                navPath = NavigationPath()
+            }
         }
     }
 

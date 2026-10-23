@@ -54,6 +54,9 @@ struct ContentView: View {
                 .tag(Tab.profile)
         }
         .tint(.appBlue)
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToHome)) { _ in
+            selectedTab = .home
+        }
     }
 }
 

@@ -174,18 +174,52 @@ private struct BookingLicenseConfirmView: View {
             }
             .padding(.top, .spacingS)
 
-            // ── Extracted licence fields ─────────────────────────────────────
-            VStack(alignment: .leading, spacing: .spacingM) {
-                sectionTitle("Licence Details")
-                ConfirmRow(icon: "person.fill",         label: "Full Name",       value: info.fullName.isEmpty ? "—" : info.fullName)
-                ConfirmRow(icon: "creditcard.fill",     label: "Licence Number",  value: info.licenseNumber.isEmpty ? "—" : info.licenseNumber)
-                ConfirmRow(icon: "calendar",            label: "Date of Birth",   value: info.formattedDateOfBirth.isEmpty ? "—" : info.formattedDateOfBirth)
-                ConfirmRow(icon: "calendar.badge.clock",label: "Expiry Date",     value: info.formattedExpiryDate.isEmpty ? "—" : info.formattedExpiryDate,
-                           isWarning: info.isExpired)
-            }
-            .padding(.spacingL)
-            .cardStyle()
-            .padding(.horizontal, .spacingL)
+
+            // Extracted licence fields
+           VStack(alignment: .leading, spacing: .spacingM) {
+               sectionTitle("Licence Details")
+
+               ConfirmRow(
+                   icon: "person.fill",
+                   label: "Full Name",
+                   value: info.fullName.isEmpty ? "—" : info.fullName
+               )
+
+               ConfirmRow(
+                   icon: "creditcard.fill",
+                   label: "Licence Number",
+                   value: info.licenseNumber.isEmpty ? "—" : info.licenseNumber
+               )
+
+               ConfirmRow(
+                   icon: "calendar",
+                   label: "Date of Birth",
+                   value: info.formattedDateOfBirth.isEmpty
+                       ? "—"
+                       : info.formattedDateOfBirth
+               )
+
+               ConfirmRow(
+                   icon: "house.fill",
+                   label: "Address",
+                   value: info.address.trimmingCharacters(
+                       in: .whitespacesAndNewlines
+                   ).isEmpty ? "—" : info.address
+               )
+
+               ConfirmRow(
+                   icon: "calendar.badge.clock",
+                   label: "Expiry Date",
+                   value: info.formattedExpiryDate.isEmpty
+                       ? "—"
+                       : info.formattedExpiryDate,
+                   isWarning: info.isExpired
+               )
+           }
+           .padding(.spacingL)
+           .cardStyle()
+           .padding(.horizontal, .spacingL)
+
 
             // ── Trip summary card ────────────────────────────────────────────
             VStack(alignment: .leading, spacing: .spacingM) {

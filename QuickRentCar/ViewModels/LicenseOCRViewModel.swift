@@ -68,6 +68,7 @@ class LicenseOCRViewModel: ObservableObject {
     func saveLicenseInfo(userId: String) async {
         guard let info = extractedInfo else { return }
         isSaving = true
+        defer { isSaving = false }
 
         do {
             let user = User(
@@ -75,18 +76,21 @@ class LicenseOCRViewModel: ObservableObject {
                 email: "",
                 fullName: info.fullName,
                 licenseNumber: info.licenseNumber,
-                licenseExpiry: info.expiryDate
+                licenseExpiry: info.expiryDate,
+                licenseAddress: info.address
             )
+
             try await firestoreService.updateUser(user)
         } catch {
             errorMessage = error.localizedDescription
         }
-
-        isSaving = false
     }
+
+
 
     func saveLicense(merging user: User) async -> User? {
         guard let info = extractedInfo else { return nil }
+
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }
@@ -94,6 +98,7 @@ class LicenseOCRViewModel: ObservableObject {
         var updated = user
         updated.licenseNumber = info.licenseNumber
         updated.licenseExpiry = info.expiryDate
+        updated.licenseAddress = info.address
 
         do {
             try await FirestoreService.shared.updateUser(updated)

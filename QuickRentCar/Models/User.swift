@@ -1,14 +1,17 @@
+
 import Foundation
 import FirebaseFirestore
 
 struct User: Identifiable, Codable {
     @DocumentID var id: String?
+
     var email: String
     var fullName: String
     var phoneNumber: String
     var profileImageURL: String?
     var licenseNumber: String?
     var licenseExpiry: Date?
+    var licenseAddress: String?
     var isFaceIDEnabled: Bool
     var fcmToken: String?
     var createdAt: Date
@@ -21,6 +24,7 @@ struct User: Identifiable, Codable {
         profileImageURL: String? = nil,
         licenseNumber: String? = nil,
         licenseExpiry: Date? = nil,
+        licenseAddress: String? = nil,
         isFaceIDEnabled: Bool = false,
         fcmToken: String? = nil,
         createdAt: Date = Date()
@@ -32,6 +36,7 @@ struct User: Identifiable, Codable {
         self.profileImageURL = profileImageURL
         self.licenseNumber = licenseNumber
         self.licenseExpiry = licenseExpiry
+        self.licenseAddress = licenseAddress
         self.isFaceIDEnabled = isFaceIDEnabled
         self.fcmToken = fcmToken
         self.createdAt = createdAt

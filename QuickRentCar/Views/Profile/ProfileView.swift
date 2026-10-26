@@ -99,13 +99,64 @@ struct ProfileView: View {
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
 
+    /// Same key used in QuickRentCarApp so writing here propagates app-wide.
+    @AppStorage("appColorScheme") private var appColorScheme: String = ""
+
+    /// Three-state picker: system / light / dark.
+    private enum AppearanceOption: String, CaseIterable, Identifiable {
+        case system = ""
+        case light  = "light"
+        case dark   = "dark"
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .system: return "System Default"
+            case .light:  return "Light"
+            case .dark:   return "Dark"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .system: return "circle.lefthalf.filled"
+            case .light:  return "sun.max.fill"
+            case .dark:   return "moon.fill"
+            }
+        }
+    }
+
     var body: some View {
         List {
+            // MARK: Appearance
+            Section("Appearance") {
+                ForEach(AppearanceOption.allCases) { option in
+                    Button {
+                        appColorScheme = option.rawValue
+                    } label: {
+                        HStack {
+                            Label(option.label, systemImage: option.icon)
+                                .foregroundStyle(Color.primary)
+                            Spacer()
+                            if appColorScheme == option.rawValue {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color.fallbackBlue)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // MARK: Notifications
             Section("Notifications") {
                 NavigationLink("Push Notifications") {
                     Text("Notification settings").padding()
                 }
             }
+
+            // MARK: About
             Section("About") {
                 LabeledContent("Version", value: "1.0.0")
                 LabeledContent("Build", value: "1")

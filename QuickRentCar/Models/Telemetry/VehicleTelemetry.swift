@@ -55,3 +55,67 @@ extension JSONDecoder {
         return decoder
     }
 }
+
+// MARK: - API → VehicleTelemetry conversion
+extension VehicleTelemetry {
+
+    /// Builds a `VehicleTelemetry` value from a `GPSAPITripsResponse`.
+    /// Fields that the API does not supply (schemaVersion, rentalId, geographicalScope,
+    /// packageAllowanceKm, rentalReturnDate) are filled with sensible defaults so the
+    /// rest of the app (VehicleStatsViewModel, VehicleTelemetryService) continues to work
+    /// without any changes.
+    static func fromAPI(
+        response: GPSAPITripsResponse,
+        rentalId: String = "QR001-TRIP-001",
+        packageAllowanceKm: Double = 500,
+        rentalReturnDate: Date = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
+    ) -> VehicleTelemetry {
+
+        // Convert each API trip → TelemetryTrip
+        let trips: [TelemetryTrip] = response.trips.map { apiTrip in
+            let points: [TelemetryPoint] = (apiTrip.points ?? []).map { pt in
+                TelemetryPoint(
+                    timestamp: pt.timestamp,
+                    latitude: pt.latitude,
+                    longitude: pt.longitude,
+                    speedKmh: pt.speedKmh,
+                    engineOn: pt.engineOn
+                )
+            }
+            return TelemetryTrip(
+                tripId: apiTrip.tripId,
+                startTime: apiTrip.startTime,
+                endTime: apiTrip.endTime,
+                startReason: apiTrip.startReason,
+                endReason: apiTrip.endReason,
+                startLocationLabel: nil,
+                endLocationLabel: nil,
+                routeTemplate: nil,
+                distanceKmApprox: apiTrip.distanceKm,
+                points: points
+            )
+        }
+
+        // Derive lastKnownLocation from the newest point across all trips
+        let allPoints = trips.flatMap { $0.points }
+        let newest = allPoints.max(by: { $0.timestamp < $1.timestamp })
+        let lastKnown = TelemetryLocation(
+            latitude: newest?.latitude ?? 0,
+            longitude: newest?.longitude ?? 0,
+            timestamp: newest?.timestamp ?? Date()
+        )
+
+        return VehicleTelemetry(
+            schemaVersion: "1.0",
+            vehicleId: response.vehicleId,
+            rentalId: rentalId,
+            dataSource: response.meta.dataSource,
+            geographicalScope: "API",
+            samplingIntervalSeconds: response.meta.samplingIntervalSeconds,
+            packageAllowanceKm: packageAllowanceKm,
+            rentalReturnDate: rentalReturnDate,
+            trips: trips,
+            lastKnownLocation: lastKnown
+        )
+    }
+}

@@ -4,10 +4,10 @@ import SwiftUI
 @MainActor
 final class VehicleStatsViewModel: ObservableObject {
 
-    /// TESTING: the seed JSON only covers Oct 14–18, so "Today" and "This Week" would be empty
-    /// on any later date. While this is `true`, periods are measured back from the newest sample
-    /// point (the last known location time) instead of from the real current date.
-    /// Set to `false` when real, live telemetry is connected.
+    /// When `true`, period calculations are anchored to the newest telemetry point instead of
+    /// the real current date. This is needed whenever the data window is in the past (e.g. the
+    /// sample vehicle data covers Oct 10–23, 2026). Set to `false` only when the API is
+    /// continuously streaming live data whose latest point is always "today".
     static let useSampleDataAnchor = true
 
     /// Stats days/weeks are calculated in Colombo time (the seed data is +05:30).

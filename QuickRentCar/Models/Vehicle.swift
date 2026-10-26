@@ -21,10 +21,7 @@ struct Vehicle: Identifiable, Codable {
     var rating: Double
     var reviewCount: Int
     var location: String
-    /// Periods in which this vehicle is already reserved. Written inside a Firestore
-    /// transaction when a booking is created, so two users can never hold the same
-    /// vehicle for overlapping dates. Optional so documents written before this
-    /// field existed still decode.
+  
     var bookedPeriods: [DateRange]?
 
     enum VehicleCategory: String, Codable, CaseIterable {
@@ -60,17 +57,15 @@ struct Vehicle: Identifiable, Codable {
     }
 }
 
-// MARK: - Availability
+
 extension Vehicle {
-    /// True when the vehicle is administratively available *and* has no booking
-    /// overlapping the requested period.
+
     func canBeBooked(for period: DateRange) -> Bool {
         guard isAvailable else { return false }
         return !(bookedPeriods ?? []).contains { $0.overlaps(period) }
     }
 }
 
-// MARK: - Sample Data
 extension Vehicle {
     static let sampleVehicles: [Vehicle] = [
         Vehicle(

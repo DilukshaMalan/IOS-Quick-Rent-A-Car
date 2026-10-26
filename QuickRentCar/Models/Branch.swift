@@ -14,7 +14,6 @@ enum Branch: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
-    /// Full name for detail screens; the dropdown uses the shorter `rawValue`.
     var displayName: String {
         switch self {
         case .katunayakeAirport:

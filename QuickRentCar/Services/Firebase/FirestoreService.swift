@@ -29,11 +29,8 @@ class FirestoreService {
         try collection(Constants.Firestore.users).document(id).setData(from: user, merge: true)
     }
 
-    // MARK: - Vehicles
     func fetchVehicles() async throws -> [Vehicle] {
-        // Sorted in Swift rather than with `order(by:)`. Combining a where-filter with an
-        // orderBy on a *different* field makes Firestore demand a composite index, and the
-        // query fails with FAILED_PRECONDITION until that index is created in the console.
+
         let snapshot = try await collection(Constants.Firestore.vehicles)
             .whereField("isAvailable", isEqualTo: true)
             .getDocuments()
@@ -56,17 +53,6 @@ class FirestoreService {
         return vehicle
     }
 
-    // MARK: - Bookings
-
-    /// Creates a booking only if the vehicle is still free for the requested period.
-    ///
-    /// Runs inside a Firestore transaction: it re-reads the vehicle document, compares the
-    /// requested period against the periods already booked, then writes the booking **and**
-    /// the updated vehicle in one atomic commit — or aborts with `.vehicleUnavailable`.
-    /// That is what stops two users reserving the same car for overlapping dates.
-    ///
-    /// The check runs against the vehicle document rather than a query because the iOS
-    /// SDK's `Transaction` can only read single documents, not run queries.
     func createBooking(_ booking: Booking) async throws -> String {
         guard !booking.vehicleId.isEmpty else { throw FirestoreError.missingID }
 
@@ -113,8 +99,7 @@ class FirestoreService {
     }
 
     func fetchBookings(userId: String) async throws -> [Booking] {
-        // Newest first, sorted in Swift to avoid needing a composite index
-        // (where-filter + orderBy on a different field).
+
         let snapshot = try await collection(Constants.Firestore.bookings)
             .whereField("userId", isEqualTo: userId)
             .getDocuments()

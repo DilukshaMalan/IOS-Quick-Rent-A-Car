@@ -30,7 +30,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
-// MARK: - UNUserNotificationCenterDelegate
 extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -49,7 +48,6 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     }
 }
 
-// MARK: - MessagingDelegate
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let token = fcmToken else { return }

@@ -8,6 +8,8 @@ struct LicenseInfo: Codable {
     var expiryDate: Date?
     var issuingAuthority: String?
     var rawExtractedText: String
+    /// Address printed on the front of the licence (field 8).
+    var address: String
 
     var isExpired: Bool {
         guard let expiry = expiryDate else { return false }
@@ -30,7 +32,8 @@ struct LicenseInfo: Codable {
         licenseNumber: String = "",
         expiryDate: Date? = nil,
         issuingAuthority: String? = nil,
-        rawExtractedText: String = ""
+        rawExtractedText: String = "",
+        address: String = ""
     ) {
         self.fullName = fullName
         self.dateOfBirth = dateOfBirth
@@ -38,5 +41,6 @@ struct LicenseInfo: Codable {
         self.expiryDate = expiryDate
         self.issuingAuthority = issuingAuthority
         self.rawExtractedText = rawExtractedText
+        self.address = address
     }
 }

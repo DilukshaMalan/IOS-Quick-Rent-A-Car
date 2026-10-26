@@ -9,7 +9,6 @@ class VisionOCRService {
 
     // MARK: - Two-Side Helpers
 
-    /// Extracts name, licence number and date of birth from the **front** side.
     func extractFrontInfo(from image: UIImage) async throws -> LicenseInfo {
         guard let cgImage = image.cgImage else { throw OCRError.invalidImage }
         let orientation = CGImagePropertyOrientation(uiOrientation: image.imageOrientation)
@@ -17,22 +16,32 @@ class VisionOCRService {
         guard !lines.isEmpty else { throw OCRError.noTextFound }
         var info = parseLicenseFields(from: lines)
         info.expiryDate = nil   // expiry comes from the rear; clear any mis-read value
+        #if DEBUG
+        printDebug(label: "FRONT", lines: lines, info: info)
+        #endif
         return info
     }
 
-    /// Extracts only the expiry date from the **rear** side.
     func extractExpiryDate(from image: UIImage) async throws -> Date? {
         guard let cgImage = image.cgImage else { throw OCRError.invalidImage }
         let orientation = CGImagePropertyOrientation(uiOrientation: image.imageOrientation)
         let lines = try await recognizeLines(in: cgImage, orientation: orientation)
+        guard !lines.isEmpty else { throw OCRError.noTextFound }
+
         // Try labelled expiry first, then fall back to the latest date on the rear card.
-        if let expiry = labelledDate(
+        var expiry = labelledDate(
             matching: #"(?i)\b(expiry|expires|expiration|exp\.?|valid\s+(to|until|thru))"#,
-            in: lines, endOfDay: true) {
-            return expiry
+            in: lines, endOfDay: true)
+        if expiry == nil {
+            let allDates = lines.flatMap { dateParts(in: $0) }.compactMap { makeDate($0, endOfDay: true) }
+            expiry = allDates.max()
         }
-        let allDates = lines.flatMap { dateParts(in: $0) }.compactMap { makeDate($0, endOfDay: true) }
-        return allDates.max()
+        #if DEBUG
+        print("🔎 [OCR] REAR \(lines.count) rows recognised:")
+        for (index, line) in lines.enumerated() { print("   \(index): \(line)") }
+        print("🔎 [OCR] REAR expiry: \(String(describing: expiry))")
+        #endif
+        return expiry
     }
 
     // MARK: - Extract License Info from Image
@@ -41,21 +50,20 @@ class VisionOCRService {
             throw OCRError.invalidImage
         }
 
-        // Photos from the camera and the gallery are usually stored sideways with an orientation flag.
-        // Vision must be told about it, otherwise it reads the card rotated and finds little or nothing.
         let orientation = CGImagePropertyOrientation(uiOrientation: image.imageOrientation)
         let lines = try await recognizeLines(in: cgImage, orientation: orientation)
         guard !lines.isEmpty else { throw OCRError.noTextFound }
 
         let info = parseLicenseFields(from: lines)
         #if DEBUG
-        printDebug(lines: lines, info: info)
+        printDebug(label: "SINGLE", lines: lines, info: info)
         #endif
         return info
     }
 
     // MARK: - Text Recognition
     /// Returns one string per visual row of the card (top to bottom, left to right).
+    /// Fragments that sit on the same row are separated by TWO spaces — the parser relies on that.
     private func recognizeLines(in cgImage: CGImage,
                                 orientation: CGImagePropertyOrientation) async throws -> [String] {
         try await withCheckedThrowingContinuation { continuation in
@@ -64,6 +72,9 @@ class VisionOCRService {
                 request.recognitionLevel = .accurate
                 // Correction "fixes" names and ID numbers into real words, which hurts here.
                 request.usesLanguageCorrection = false
+                // The printed address and name are small (about 2% of the card photo's height).
+                // Vision skips text smaller than its default minimum height, so allow smaller text.
+                request.minimumTextHeight = 0.01
 
                 let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
                 do {
@@ -82,7 +93,7 @@ class VisionOCRService {
         let box: CGRect
     }
 
-    /// Groups the recognised fragments into rows by their position, so "Date of Expiry" and its
+    /// Groups the recognised fragments into rows by their position, so "4a." and its
     /// value end up on the same line even though Vision returns them as separate fragments.
     private static func makeLines(from observations: [VNRecognizedTextObservation]) -> [String] {
         let pieces: [Piece] = observations.compactMap { observation in
@@ -111,17 +122,95 @@ class VisionOCRService {
         }
     }
 
+    // MARK: - Printed field numbers
+    //
+    // The Sri Lankan licence numbers its fields instead of naming them:
+    //   1,2 name   3 date of birth   4a date of issue   4b authority   4c NIC
+    //   5 licence number   8 address   12 restrictions
+    // so there is no "Name" or "Licence No" word to search for — the number label is the anchor.
+
+    private struct CardField {
+        let label: String   // normalised: "5", "4c", "1,2", "8", "3"
+        let value: String   // text after the label; separate OCR fragments are divided by two spaces
+        let row: Int
+    }
+
+    /// A field label sits at the start of a row, or after the two-space gap between fragments.
+    /// "5.B5817846D" (no space after the dot) is accepted. Day-of-month numbers such as "15."
+    /// are not labels (only 1–12 are), and a label inside a fragment ("15.08.2001") is ignored.
+    private static let fieldLabelRegex = try? NSRegularExpression(
+        pattern: #"(?:^|(?<=\s\s))(1\s*[,.]\s*2|(?:1[0-2]|[1-9])[a-cA-C]?)\s*[.)]\s*"#
+    )
+
+    private func cardFields(from lines: [String]) -> [CardField] {
+        guard let regex = Self.fieldLabelRegex else { return [] }
+        var fields: [CardField] = []
+
+        for (row, line) in lines.enumerated() {
+            let ns = line as NSString
+            let matches = regex.matches(in: line, range: NSRange(location: 0, length: ns.length))
+            for (index, match) in matches.enumerated() {
+                let valueStart = match.range.location + match.range.length
+                let valueEnd = index + 1 < matches.count ? matches[index + 1].range.location : ns.length
+                guard valueEnd >= valueStart else { continue }
+
+                let label = ns.substring(with: match.range(at: 1))
+                    .replacingOccurrences(of: " ", with: "")
+                    .replacingOccurrences(of: ".", with: ",")
+                    .lowercased()
+                let value = ns.substring(with: NSRange(location: valueStart, length: valueEnd - valueStart))
+                    .trimmingCharacters(in: .whitespaces)
+                fields.append(CardField(label: label, value: value, row: row))
+            }
+        }
+        return fields
+    }
+
+    private func hasFieldLabel(_ line: String) -> Bool {
+        guard let regex = Self.fieldLabelRegex else { return false }
+        let ns = line as NSString
+        guard let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) else { return false }
+        return match.range.location == 0
+    }
+
+    /// Splits a row value into its OCR fragments (they are separated by two or more spaces).
+    private func fragments(_ text: String) -> [String] {
+        text.components(separatedBy: "  ")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func stripFieldNumber(_ line: String) -> String {
+        line.replacingOccurrences(
+            of: #"^\s*\d{1,2}[a-cA-C]?(\s*,\s*\d{1,2})?\s*[.)]\s*"#,
+            with: "",
+            options: .regularExpression
+        )
+    }
+
     // MARK: - Parse License Fields
     private func parseLicenseFields(from lines: [String]) -> LicenseInfo {
         var info = LicenseInfo(rawExtractedText: lines.joined(separator: "\n"))
+        let fields = cardFields(from: lines)
 
-        info.fullName = parseName(from: lines)
-        info.licenseNumber = parseLicenseNumber(from: lines)
+        let number = parseLicenseNumber(from: lines, fields: fields)
+        info.licenseNumber = number.number
 
-        info.dateOfBirth = labelledDate(
-            matching: #"(?i)\b(d\.?o\.?b\.?|birth)"#,
-            in: lines
-        )
+        let name = parseName(from: lines, fields: fields, afterRow: number.row)
+        info.fullName = name.name
+
+        info.address = parseAddress(from: lines, fields: fields, nameRow: name.row)
+
+        // Date of birth: printed field "3", else a "Date of birth" label (below: earliest old-enough date).
+        if let field = fields.first(where: { $0.label == "3" }),
+           let parts = dateParts(in: field.value).first {
+            info.dateOfBirth = makeDate(parts)
+        }
+        if info.dateOfBirth == nil {
+            info.dateOfBirth = labelledDate(matching: #"(?i)\b(d\.?o\.?b\.?|birth)"#, in: lines)
+        }
+
+        // Expiry (only used by the one-photo flow; the two-photo flow reads it from the rear).
         info.expiryDate = labelledDate(
             matching: #"(?i)\b(expiry|expires|expiration|exp\.?|valid\s+(to|until|thru))"#,
             in: lines,
@@ -133,16 +222,24 @@ class VisionOCRService {
             info.expiryDate = nil
         }
 
-        // Fallbacks when a label could not be read: on a licence the expiry is the latest date
-        // and the date of birth is the earliest.
-        let allDates = lines.flatMap { dateParts(in: $0) }.compactMap { makeDate($0) }
-        if allDates.count >= 2, let earliest = allDates.min(), let latest = allDates.max() {
-            if info.expiryDate == nil, latest > (info.dateOfBirth ?? .distantPast) {
-                info.expiryDate = endOfDay(latest)
-            }
-            if info.dateOfBirth == nil, latest.timeIntervalSince(earliest) > 5 * 365 * 86_400 {
+        // Fallbacks when a label could not be read. The date of issue (field 4a) is left out,
+        // because it is neither the date of birth nor the expiry.
+        let issueRows = Set(fields.filter { $0.label == "4a" }.map(\.row))
+        let allDates = lines.enumerated()
+            .filter { !issueRows.contains($0.offset) }
+            .flatMap { dateParts(in: $0.element) }
+            .compactMap { makeDate($0) }
+
+        if info.dateOfBirth == nil {
+            // Only a date at least 16 years back can be a date of birth.
+            let cutoff = Calendar(identifier: .gregorian).date(byAdding: .year, value: -16, to: Date()) ?? Date()
+            if let earliest = allDates.min(), earliest <= cutoff {
                 info.dateOfBirth = earliest
             }
+        }
+        if info.expiryDate == nil, allDates.count >= 2, let latest = allDates.max(),
+           latest > (info.dateOfBirth ?? .distantPast) {
+            info.expiryDate = endOfDay(latest)
         }
 
         return info
@@ -150,8 +247,9 @@ class VisionOCRService {
 
     // MARK: Name
     /// Words that appear on the card itself and are never part of a person's name.
+    /// ("SRI" and "LANKA" are deliberately NOT here: "Sri" is a common part of Sri Lankan names.)
     private let headerWords: Set<String> = [
-        "DRIVING", "LICENCE", "LICENSE", "REPUBLIC", "DEMOCRATIC", "SOCIALIST", "SRI", "LANKA",
+        "DRIVING", "LICENCE", "LICENSE", "REPUBLIC", "DEMOCRATIC", "SOCIALIST",
         "DEPARTMENT", "MOTOR", "TRAFFIC", "VEHICLE", "VEHICLES", "CLASS", "CLASSES", "CATEGORY",
         "ADDRESS", "DATE", "BIRTH", "EXPIRY", "ISSUE", "BLOOD", "GROUP", "SIGNATURE",
         "COMMISSIONER", "GENERAL", "NATIONAL", "IDENTITY", "CARD", "NIC", "VALID",
@@ -175,58 +273,158 @@ class VisionOCRService {
         return !words.contains(where: { headerWords.contains($0) })
     }
 
-    private func parseName(from lines: [String]) -> String {
-        // 1) Use the "Name" label: value on the same row, or on the row below.
+    private func lettersOK(_ text: String) -> Bool {
+        text.count >= 3 && text.filter { $0.isLetter }.count >= 3
+    }
+
+    /// A name from one row's fragments. Tiny fragments (like the "SL" mark printed beside the
+    /// name) are dropped; the remaining fragments are joined with single spaces.
+    private func nameFrom(_ value: String) -> String {
+        fragments(value)
+            .map { cleanName($0) }
+            .filter { piece in piece.filter { $0.isLetter }.count >= 3 }
+            .joined(separator: " ")
+    }
+
+    /// Returns the name and the row it was found on (used to find the address below it).
+    private func parseName(from lines: [String], fields: [CardField], afterRow numberRow: Int?) -> (name: String, row: Int?) {
+        // 1) Printed field "1,2" (surname and given names) — the label is reliable, so no word filtering.
+        if let field = fields.first(where: { $0.label == "1,2" }) {
+            let name = nameFrom(field.value)
+            if lettersOK(name) { return (name, field.row) }
+        }
+        // 1b) Separate fields "1" and "2"
+        if let surname = fields.first(where: { $0.label == "1" }),
+           let given = fields.first(where: { $0.label == "2" }) {
+            let name = (nameFrom(surname.value) + " " + nameFrom(given.value)).trimmingCharacters(in: .whitespaces)
+            if lettersOK(name) { return (name, given.row) }
+        }
+
+        // 2) A "Name" word label: value on the same row, or on the row below.
         for (index, line) in lines.enumerated() {
             guard let label = line.range(of: #"(?i)\b(full\s+)?names?\b\s*[:.\-]?"#, options: .regularExpression) else { continue }
             let lower = line.lowercased()
             if lower.contains("father") || lower.contains("mother") || lower.contains("spouse") { continue }
 
-            let sameRow = cleanName(String(line[label.upperBound...]))
-            if isPlausibleName(sameRow) { return sameRow }
+            let sameRow = nameFrom(String(line[label.upperBound...]))
+            if isPlausibleName(sameRow) { return (sameRow, index) }
 
             if index + 1 < lines.count {
-                let nextRow = cleanName(lines[index + 1])
-                if isPlausibleName(nextRow) { return nextRow }
+                let nextRow = nameFrom(lines[index + 1])
+                if isPlausibleName(nextRow) { return (nextRow, index + 1) }
             }
         }
 
-        // 2) No label found: first row that looks like a person's name (2+ words, letters only).
-        for line in lines where !line.contains(where: { $0.isNumber }) {
-            let candidate = cleanName(line)
-            if candidate.split(separator: " ").count >= 2, candidate.count >= 8, isPlausibleName(candidate) {
-                return candidate
+        // 3) No label found: the first row after the licence number that is ALL CAPITAL LETTERS,
+        //    2+ words, with the field number (if any) removed. Mixed-case OCR noise is skipped.
+        let start = numberRow ?? -1
+        for (index, line) in lines.enumerated() where index > start {
+            let stripped = stripFieldNumber(line)
+            if stripped.contains(where: { $0.isNumber }) { continue }
+            let candidate = nameFrom(stripped)
+            if candidate == candidate.uppercased(),
+               candidate.split(separator: " ").count >= 2,
+               candidate.count >= 8,
+               isPlausibleName(candidate) {
+                return (candidate, index)
             }
         }
-        return ""
+        return ("", nil)
     }
 
     // MARK: Licence number
-    private func parseLicenseNumber(from lines: [String]) -> String {
-        let candidate = #"[A-Z]{0,3}\s?\d{6,9}"#
+    /// Returns the licence number and the row it was found on.
+    private func parseLicenseNumber(from lines: [String], fields: [CardField]) -> (number: String, row: Int?) {
+        // 1) Printed field "5". Letters + digits + optional trailing letter(s), e.g. B5817846D.
+        if let field = fields.first(where: { $0.label == "5" }) {
+            let token = (fragments(field.value).first ?? "").uppercased().replacingOccurrences(of: " ", with: "")
+            if let match = token.range(of: #"[A-Z]{1,3}\d{6,8}[A-Z]{0,2}"#, options: .regularExpression) {
+                return (String(token[match]), field.row)
+            }
+            let alnum = token.filter { $0.isLetter || $0.isNumber }
+            if alnum.count >= 6, alnum.filter({ $0.isNumber }).count >= 5 {
+                return (alnum, field.row)
+            }
+        }
 
-        // 1) After a "Licence No" style label (same row or the row below)
+        // 2) A "Licence No" word label (same row or the row below)
+        let candidate = #"[A-Z]{0,3}\s?\d{6,9}[A-Z]{0,2}"#
         for (index, line) in lines.enumerated() {
             guard let label = line.range(of: #"(?i)\b(licen[cs]e|driving|d\.?l\.?)\s*(no|number|#)\.?"#, options: .regularExpression) else { continue }
             let sameRow = String(line[label.upperBound...]).uppercased()
             let nextRow = index + 1 < lines.count ? lines[index + 1].uppercased() : ""
             for text in [sameRow, nextRow] {
                 if let match = text.range(of: candidate, options: .regularExpression) {
-                    return String(text[match]).replacingOccurrences(of: " ", with: "")
+                    return (String(text[match]).replacingOccurrences(of: " ", with: ""), index)
                 }
             }
         }
 
-        // 2) No label: first thing shaped like a licence number (1–3 letters + 6–8 digits).
-        //    Rows mentioning an NIC / passport number are skipped.
-        for line in lines {
+        // 3) No label: first thing shaped like a licence number (1–3 letters, 6–8 digits, optional letters).
+        //    Rows mentioning an NIC / passport number are skipped (a bare NIC has no letter prefix anyway).
+        for (index, line) in lines.enumerated() {
             let upper = line.uppercased()
             if upper.range(of: #"\bNIC\b"#, options: .regularExpression) != nil || upper.contains("PASSPORT") { continue }
-            if let match = upper.range(of: #"\b[A-Z]{1,3}\s?\d{6,8}\b"#, options: .regularExpression) {
-                return String(upper[match]).replacingOccurrences(of: " ", with: "")
+            if let match = upper.range(of: #"\b[A-Z]{1,3}\s?\d{6,8}[A-Z]{0,2}\b"#, options: .regularExpression) {
+                return (String(upper[match]).replacingOccurrences(of: " ", with: ""), index)
             }
         }
-        return ""
+        return ("", nil)
+    }
+
+    // MARK: Address
+    /// Only rows that clearly belong to other printed fields end an address.
+    private let addressStopWords: Set<String> = [
+        "BLOOD", "GROUP", "SIGNATURE", "HOLDER", "COMMISSIONER", "RESTRICTIONS", "ENDORSEMENTS",
+        "DRIVING", "LICENCE", "LICENSE", "DEMOCRATIC", "SOCIALIST", "REPUBLIC"
+    ]
+
+    /// Keeps address-like fragments; short noise fragments (e.g. "S", "SS") are dropped.
+    private func cleanAddress(_ text: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " /,.-'"))
+        return fragments(text)
+            .map { fragment -> String in
+                String(fragment.unicodeScalars.filter { allowed.contains($0) })
+                    .trimmingCharacters(in: CharacterSet(charactersIn: " ,.-"))
+            }
+            .filter { piece in piece.filter { $0.isLetter || $0.isNumber }.count >= 3 }
+            .joined(separator: " ")
+    }
+
+    /// The address is printed over 2–3 rows. It starts at printed field "8" — or, if that label was
+    /// not read, on the row right below the name — and continues until the next printed field
+    /// (e.g. "3." date of birth) or a date.
+    private func parseAddress(from lines: [String], fields: [CardField], nameRow: Int?) -> String {
+        var parts: [String] = []
+        let startRow: Int
+        var row: Int
+
+        if let field = fields.first(where: { $0.label == "8" }) {
+            startRow = field.row
+            let first = cleanAddress(field.value)
+            if !first.isEmpty { parts.append(first) }
+            row = field.row + 1
+        } else if let nameRow {
+            startRow = nameRow
+            row = nameRow + 1
+        } else {
+            return ""
+        }
+
+        while row < lines.count, parts.count < 3, row - startRow <= 4 {
+            let line = lines[row]
+            if hasFieldLabel(line) || !dateParts(in: line).isEmpty { break }
+
+            let cleaned = cleanAddress(line)
+            if !cleaned.isEmpty {
+                let words = cleaned.split(separator: " ")
+                    .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: ".,'-")).uppercased() }
+                if words.contains(where: { addressStopWords.contains($0) }) { break }
+                parts.append(cleaned)
+            }
+            row += 1
+        }
+        return parts.joined(separator: ", ")
     }
 
     // MARK: Dates
@@ -310,11 +508,11 @@ class VisionOCRService {
     // MARK: - Debug
     #if DEBUG
     /// Prints what Vision read and what was extracted, to tune the rules against real licences.
-    /// (Contains personal data — remove or keep DEBUG-only.)
-    private func printDebug(lines: [String], info: LicenseInfo) {
-        print("🔎 [OCR] \(lines.count) rows recognised:")
+    /// (Contains personal data — keep DEBUG-only.)
+    private func printDebug(label: String, lines: [String], info: LicenseInfo) {
+        print("🔎 [OCR] \(label): \(lines.count) rows recognised:")
         for (index, line) in lines.enumerated() { print("   \(index): \(line)") }
-        print("🔎 [OCR] name: '\(info.fullName)' | number: '\(info.licenseNumber)' | dob: \(String(describing: info.dateOfBirth)) | expiry: \(String(describing: info.expiryDate))")
+        print("🔎 [OCR] \(label) -> name: '\(info.fullName)' | number: '\(info.licenseNumber)' | address: '\(info.address)' | dob: \(String(describing: info.dateOfBirth)) | expiry: \(String(describing: info.expiryDate))")
     }
     #endif
 }

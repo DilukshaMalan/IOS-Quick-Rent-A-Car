@@ -66,7 +66,7 @@ struct ContentView: View {
                 .tabItem { Label("Home", systemImage: "house.fill") }
                 .tag(Tab.home)
 
-            BookingHistoryView()
+            BookingsTabView()
                 .tabItem { Label("Bookings", systemImage: "calendar.badge.clock") }
                 .tag(Tab.bookings)
 

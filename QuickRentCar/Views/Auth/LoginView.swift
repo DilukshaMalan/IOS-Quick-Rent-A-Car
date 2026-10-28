@@ -7,10 +7,6 @@ struct LoginView: View {
     @State private var showRegister = false
     @State private var showForgotPassword = false
 
-    /// Face ID quick-login is only shown when the user has previously enabled it.
-    private var faceIDEnabled: Bool { BiometricAuthService.shared.isFaceIDEnabled }
-    private var biometricName: String { BiometricAuthService.shared.biometricTypeName }
-
     var body: some View {
         ScrollView {
             VStack(spacing: .spacingXL) {
@@ -79,46 +75,6 @@ struct LoginView: View {
                     }
                 }
                 .disabled(authViewModel.isLoading)
-
-                // MARK: - Face ID Quick Login
-                // Shown only when the user has previously enabled Face ID in Settings.
-                // This skips the email/password fields entirely — it re-authenticates via
-                // biometrics and then restores the existing Firebase session.
-                if faceIDEnabled {
-                    VStack(spacing: .spacingS) {
-                        HStack {
-                            Rectangle().frame(height: 1).foregroundStyle(Color.gray.opacity(0.3))
-                            Text("or").font(.footnote).foregroundStyle(.secondary)
-                            Rectangle().frame(height: 1).foregroundStyle(Color.gray.opacity(0.3))
-                        }
-
-                        Button {
-                            Task { await authViewModel.signInWithBiometrics() }
-                        } label: {
-                            HStack(spacing: .spacingS) {
-                                Image(systemName: biometricName == "Face ID" ? "faceid" : "touchid")
-                                    .font(.title2)
-                                Text("Sign in with \(biometricName)")
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 54)
-                            .background(Color.fallbackBlue.opacity(0.1))
-                            .foregroundStyle(Color.fallbackBlue)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color.fallbackBlue.opacity(0.4), lineWidth: 1)
-                            )
-                        }
-                        .disabled(authViewModel.isLoading)
-
-                        Text("\(biometricName) replaces entering your password. Your account credentials stay on your device.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                }
 
                 // MARK: - Register
                 HStack {

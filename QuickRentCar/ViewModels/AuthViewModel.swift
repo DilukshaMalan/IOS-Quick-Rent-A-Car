@@ -75,55 +75,9 @@ class AuthViewModel: ObservableObject {
 
         do {
             try await authService.signIn(email: email, password: password)
-
-            // If Face ID is enabled, require biometric confirmation after credential sign-in.
-            if BiometricAuthService.shared.isFaceIDEnabled {
-                let success = await BiometricAuthService.shared.authenticate(
-                    reason: "Sign in to QuickRentCar"
-                )
-                if !success {
-                    errorMessage = "Biometric authentication failed."
-                    try? authService.signOut()
-                }
-            }
         } catch {
             errorMessage = error.localizedDescription
             logDiagnostics(error, context: "signIn")
-        }
-    }
-
-    // MARK: - Biometric-only Sign In
-    /// Used when the user taps the Face ID / Touch ID button on the login screen.
-    /// This path skips entering email & password — it verifies the biometric locally,
-    /// then checks that Firebase still has a valid cached session (the user was
-    /// previously logged in). If Firebase has no session the user must sign in with
-    /// credentials first so the token can be cached.
-    func signInWithBiometrics() async {
-        guard BiometricAuthService.shared.isBiometricAvailable else {
-            errorMessage = "\(BiometricAuthService.shared.biometricTypeName) is not available on this device."
-            return
-        }
-
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-
-        // Step 1: local biometric check
-        let biometricOK = await BiometricAuthService.shared.authenticate(
-            reason: "Sign in to QuickRentCar"
-        )
-        guard biometricOK else {
-            errorMessage = "\(BiometricAuthService.shared.biometricTypeName) authentication failed."
-            return
-        }
-
-        // Step 2: confirm Firebase has a live session (currentUser non-nil means the
-        //         token is cached from the last credential sign-in).
-        if authService.currentUser != nil {
-            // Session is already active — just mark authenticated.
-            isAuthenticated = true
-        } else {
-            errorMessage = "No saved session found. Please sign in with your email and password first to enable \(BiometricAuthService.shared.biometricTypeName) login."
         }
     }
 

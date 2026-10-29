@@ -13,7 +13,7 @@ final class VisionOCRParsingTests: XCTestCase {
     }
 
     func testExtractLicenseInfo_withEmptyBlankImage_throwsInvalidImageError() async {
-        let blankImage = UIImage() // has no underlying CGImage
+        let blankImage = UIImage()
 
         do {
             _ = try await VisionOCRService.shared.extractLicenseInfo(from: blankImage)

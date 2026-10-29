@@ -48,7 +48,7 @@ final class BookingViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.rentalDays, 4)
         XCTAssertEqual(vm.subtotal, 400.0, accuracy: 0.001)
-        XCTAssertEqual(vm.taxAmount, 40.0, accuracy: 0.001) // 10% tax
+        XCTAssertEqual(vm.taxAmount, 40.0, accuracy: 0.001)
         XCTAssertEqual(vm.totalPrice, 440.0, accuracy: 0.001)
     }
 
@@ -80,7 +80,6 @@ final class BookingViewModelTests: XCTestCase {
         let vm = BookingViewModel(vehicle: vehicle)
 
         if case .available = vm.availabilityState {
-            // Success
         } else {
             XCTFail("Expected .available state")
         }
@@ -97,7 +96,6 @@ final class BookingViewModelTests: XCTestCase {
         vm.returnDate = returnDate
 
         if case .booked = vm.availabilityState {
-            // Success
         } else {
             XCTFail("Expected .booked availability state for conflicting dates")
         }

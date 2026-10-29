@@ -4,23 +4,16 @@ import SwiftUI
 @MainActor
 final class VehicleStatsViewModel: ObservableObject {
 
-    /// When `true`, period calculations are anchored to the newest telemetry point instead of
-    /// the real current date. This is needed whenever the data window is in the past (e.g. the
-    /// sample vehicle data covers Oct 10–23, 2026). Set to `false` only when the API is
-    /// continuously streaming live data whose latest point is always "today".
     static let useSampleDataAnchor = true
 
-    /// Stats days/weeks are calculated in Colombo time (the seed data is +05:30).
     static let displayTimeZone = TimeZone(identifier: "Asia/Colombo") ?? .current
 
-    // MARK: - Period selection
     enum Period: String, CaseIterable {
         case today = "Today"
         case week = "This Week"
         case month = "This Month"
         case custom = "Custom"
 
-        /// Short label for the segmented control.
         var shortTitle: String {
             switch self {
             case .today:  return "Today"
@@ -31,12 +24,10 @@ final class VehicleStatsViewModel: ObservableObject {
         }
     }
 
-    /// Changing the period recalculates the stats AND the replay data.
     @Published var selectedPeriod: Period = .today {
         didSet { updatePeriodStats() }
     }
 
-    /// Custom range (inclusive days). Only used while `selectedPeriod == .custom`.
     @Published var customStart = Date() {
         didSet { customRangeChanged() }
     }
@@ -44,21 +35,15 @@ final class VehicleStatsViewModel: ObservableObject {
         didSet { customRangeChanged() }
     }
 
-    // MARK: - Telemetry data
     @Published var telemetry: VehicleTelemetry?
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    // MARK: - Replay data (limited to the selected period)
-    /// Trips that fall inside the selected period, with points trimmed to it, oldest first.
     @Published private(set) var replayTrips: [TelemetryTrip] = []
-    /// All points of `replayTrips` in time order — this is what the replay plays.
     @Published private(set) var replayPoints: [TelemetryPoint] = []
 
-    /// Newest telemetry sample (speed / engine state at the last known location).
     @Published private(set) var lastKnownPoint: TelemetryPoint?
 
-    /// First and last moment covered by the telemetry (limits the custom date pickers).
     private(set) var dataStart: Date?
     private(set) var dataEnd: Date?
 
@@ -67,20 +52,17 @@ final class VehicleStatsViewModel: ObservableObject {
         return start...end
     }
 
-    // MARK: - Computed UI values
     var lastKnownLocation: TelemetryLocation? { telemetry?.lastKnownLocation }
     var vehicleId: String? { telemetry?.vehicleId }
     var rentalId: String? { telemetry?.rentalId }
     var rentalReturnDate: Date? { telemetry?.rentalReturnDate }
     var packageAllowanceKm: Double { telemetry?.packageAllowanceKm ?? 0 }
 
-    // Package usage
     var usedKm: Double { packageUsage?.usedKm ?? 0 }
     var remainingKm: Double { packageUsage?.remainingKm ?? 0 }
     var percentUsed: Double { packageUsage?.percentUsed ?? 0 }
     private var packageUsage: (usedKm: Double, remainingKm: Double, percentUsed: Double)?
 
-    // MARK: - Period stats
     struct PeriodStats {
         var distanceKm: Double = 0
         var maxSpeedKmh: Double = 0
@@ -90,12 +72,8 @@ final class VehicleStatsViewModel: ObservableObject {
     }
     @Published var periodStats = PeriodStats()
 
-    // MARK: - Today stats (shortcut for UI)
     @Published var todayStats = PeriodStats()
 
-    // MARK: - Load telemetry
-    /// Loads once. Pass `force: true` to reload (the stats page re-appears after the replay screen,
-    /// and a reload there would reset the custom range).
     func loadTelemetry(force: Bool = false) async {
         if telemetry != nil && !force {
             print("🔎 [StatsVM] telemetry already loaded – skipping")
@@ -110,36 +88,28 @@ final class VehicleStatsViewModel: ObservableObject {
 
             telemetry = data
 
-            // Newest sample + the span of dates the data covers
             let allPoints = data.trips.flatMap { $0.points }
             lastKnownPoint = allPoints.max(by: { $0.timestamp < $1.timestamp })
             if let first = data.trips.map(\.startTime).min() {
                 let latest = lastKnownPoint?.timestamp ?? data.lastKnownLocation.timestamp
                 dataStart = calendar.startOfDay(for: first)
                 dataEnd = endOfDay(for: Self.useSampleDataAnchor ? latest : Date())
-                // Default custom range = everything the data covers
                 if let start = dataStart, let end = dataEnd {
                     customStart = start
                     customEnd = end
                 }
             }
 
-            // calculate package usage once
             packageUsage = VehicleTelemetryService.shared.rentalPackageUsage(telemetry: data)
 
-            // compute today stats for the top-cards
             computeTodayStats()
-            // compute selected period stats + replay data
             updatePeriodStats()
         } catch {
-            // `localizedDescription` hides DecodingError details; print the full error for debugging.
             errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
-    // MARK: - Calendar helpers
-    /// Colombo calendar, Monday as the first day of the week.
     private var calendar: Calendar {
         var cal = Calendar.current
         cal.firstWeekday = 2
@@ -153,7 +123,6 @@ final class VehicleStatsViewModel: ObservableObject {
         return nextDay.addingTimeInterval(-1)
     }
 
-    /// "Now" for the stats periods (see `useSampleDataAnchor`).
     private var referenceDate: Date {
         if Self.useSampleDataAnchor, let latest = telemetry?.lastKnownLocation.timestamp {
             return latest
@@ -180,7 +149,6 @@ final class VehicleStatsViewModel: ObservableObject {
             ?? DateInterval(start: referenceDate, duration: 86_400)
     }
 
-    /// The date range the selected period currently covers (stats and replay both use this).
     var selectedInterval: DateInterval { interval(for: selectedPeriod) }
 
     private static let dayFormatter: DateFormatter = {
@@ -197,7 +165,6 @@ final class VehicleStatsViewModel: ObservableObject {
         return f
     }()
 
-    /// e.g. "Oct 18, 2026" or "Oct 12 – Oct 18, 2026".
     var periodDescription: String {
         let range = selectedInterval
         let lastMoment = range.end.addingTimeInterval(-1)
@@ -207,7 +174,6 @@ final class VehicleStatsViewModel: ObservableObject {
         return startText == endText ? endWithYear : "\(startText) – \(endWithYear)"
     }
 
-    // MARK: - Stats
     private func computeStats(for interval: DateInterval) -> PeriodStats {
         guard let telemetry = telemetry else { return PeriodStats() }
         let raw = VehicleTelemetryService.shared.calculateStats(for: interval, telemetry: telemetry)
@@ -230,14 +196,12 @@ final class VehicleStatsViewModel: ObservableObject {
 
     private func customRangeChanged() {
         if customStart > customEnd {
-            customEnd = customStart      // re-enters here with a valid range
+            customEnd = customStart
             return
         }
         if selectedPeriod == .custom { updatePeriodStats() }
     }
 
-    // MARK: - Replay data
-    /// Keeps only the trips/points inside the selected period, so the replay matches the stats.
     private func rebuildReplayData(for range: DateInterval) {
         guard let telemetry = telemetry else {
             replayTrips = []

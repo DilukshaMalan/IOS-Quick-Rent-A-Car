@@ -1,6 +1,5 @@
 import Foundation
 
-/// Model for Vision OCR extracted driver license fields
 struct LicenseInfo: Codable {
     var fullName: String
     var dateOfBirth: Date?
@@ -8,7 +7,6 @@ struct LicenseInfo: Codable {
     var expiryDate: Date?
     var issuingAuthority: String?
     var rawExtractedText: String
-    /// Address printed on the front of the licence (field 8).
     var address: String
 
     var isExpired: Bool {

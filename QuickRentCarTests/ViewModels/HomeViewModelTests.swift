@@ -58,7 +58,7 @@ final class HomeViewModelTests: XCTestCase {
                 includedMileage: 250,
                 description: "",
                 specifications: [:],
-                isAvailable: false, // switched off
+                isAvailable: false,
                 rating: 4.9,
                 reviewCount: 30,
                 location: Branch.colombo.rawValue
@@ -84,10 +84,8 @@ final class HomeViewModelTests: XCTestCase {
         vm.selectCategory(.sedan)
         XCTAssertEqual(vm.selectedCategory, .sedan)
 
-        // Tap again to toggle off
         vm.selectCategory(.sedan)
         XCTAssertNil(vm.selectedCategory)
-        // Shows available vehicles (2 of 3 are available)
         XCTAssertEqual(vm.filteredVehicles.count, 2)
     }
 
@@ -110,7 +108,7 @@ final class HomeViewModelTests: XCTestCase {
     func testSearch_withInvalidDates_setsErrorMessage() {
         let vm = HomeViewModel()
         vm.pickupDate = Date().adding(days: 5)
-        vm.returnDate = Date().adding(days: 2) // return before pickup
+        vm.returnDate = Date().adding(days: 2)
 
         vm.search()
 
@@ -140,7 +138,6 @@ final class HomeViewModelTests: XCTestCase {
         let vm = HomeViewModel()
         vm.allVehicles = makeVehicles()
 
-        // Without active search, unavailable vehicles are filtered out
         let availableCars = vm.filteredVehicles
         XCTAssertFalse(availableCars.contains(where: { !$0.isAvailable }))
     }

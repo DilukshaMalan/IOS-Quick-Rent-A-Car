@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 
 struct VehicleStatsView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = VehicleStatsViewModel()
     @State private var showVehicleInfo = false
@@ -11,16 +12,13 @@ struct VehicleStatsView: View {
             ScrollView {
                 VStack(spacing: .spacingL) {
 
-                    // MARK: - Vehicle number
                     if let vehicleNumber = viewModel.vehicleId {
                         VehicleInfoHeader(vehicleNumber: vehicleNumber, rentalId: viewModel.rentalId)
                             .padding(.horizontal)
                     }
 
-                    // MARK: - Map Preview
                     mapSection
 
-                    // MARK: - Period Selector
                     VStack(spacing: .spacingS) {
                         Picker("Period", selection: $viewModel.selectedPeriod) {
                             ForEach(VehicleStatsViewModel.Period.allCases, id: \.self) { period in
@@ -35,7 +33,6 @@ struct VehicleStatsView: View {
                     }
                     .padding(.horizontal)
 
-                    // MARK: - Custom range
                     if viewModel.selectedPeriod == .custom,
                        let available = viewModel.availableDateRange {
                         CustomRangeCard(
@@ -47,17 +44,26 @@ struct VehicleStatsView: View {
                         .padding(.horizontal)
                     }
 
-                    // MARK: - Summary Cards
-                    TotalDistanceCard(totalKm: viewModel.periodStats.distanceKm,
-                                      usedKm: viewModel.usedKm,
-                                      includedKm: Int(viewModel.packageAllowanceKm))
+                    if horizontalSizeClass == .regular {
+                        HStack(alignment: .top, spacing: .spacingM) {
+                            TotalDistanceCard(totalKm: viewModel.periodStats.distanceKm,
+                                              usedKm: viewModel.usedKm,
+                                              includedKm: Int(viewModel.packageAllowanceKm))
+                            SpeedAnalyticsView(averageSpeed: viewModel.periodStats.averageSpeedKmh,
+                                               maxSpeed: viewModel.periodStats.maxSpeedKmh)
+                        }
                         .padding(.horizontal)
+                    } else {
+                        TotalDistanceCard(totalKm: viewModel.periodStats.distanceKm,
+                                          usedKm: viewModel.usedKm,
+                                          includedKm: Int(viewModel.packageAllowanceKm))
+                            .padding(.horizontal)
 
-                    SpeedAnalyticsView(averageSpeed: viewModel.periodStats.averageSpeedKmh,
-                                       maxSpeed: viewModel.periodStats.maxSpeedKmh)
-                        .padding(.horizontal)
+                        SpeedAnalyticsView(averageSpeed: viewModel.periodStats.averageSpeedKmh,
+                                           maxSpeed: viewModel.periodStats.maxSpeedKmh)
+                            .padding(.horizontal)
+                    }
 
-                    // MARK: - Journey Replay Navigation
                     NavigationLink(destination: JourneyReplayView(viewModel: viewModel)) {
                         VStack(spacing: 2) {
                             Text("Journey Replay")
@@ -79,6 +85,8 @@ struct VehicleStatsView: View {
                     .padding(.horizontal)
                 }
                 .padding(.vertical)
+                .frame(maxWidth: 780)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
             .navigationTitle("Driving Stats")
             .task {
@@ -87,7 +95,6 @@ struct VehicleStatsView: View {
         }
     }
 
-    // MARK: - Map
     @ViewBuilder
     private var mapSection: some View {
         if let location = viewModel.lastKnownLocation {
@@ -108,7 +115,7 @@ struct VehicleStatsView: View {
                     )
                 }
             }
-            .frame(height: 220)
+            .frame(height: horizontalSizeClass == .regular ? 280 : 220)
             .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusM))
             .padding(.horizontal)
         } else if viewModel.isLoading {
@@ -121,7 +128,6 @@ struct VehicleStatsView: View {
     }
 }
 
-// MARK: - Total Distance Card (re-used from old StatsView)
 struct TotalDistanceCard: View {
     let totalKm: Double
     let usedKm: Double
@@ -163,7 +169,6 @@ struct TotalDistanceCard: View {
     }
 }
 
-// MARK: - Speed Analytics (re-used)
 struct SpeedAnalyticsView: View {
     let averageSpeed: Double
     let maxSpeed: Double

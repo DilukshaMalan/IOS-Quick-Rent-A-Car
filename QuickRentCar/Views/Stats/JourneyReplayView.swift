@@ -1,8 +1,6 @@
 import SwiftUI
 import MapKit
 
-/// Replays the journeys of the period chosen on the stats page (Today / Week / Month / Custom).
-/// It shares the stats view model, so it never reloads data and always matches the stats.
 struct JourneyReplayView: View {
     @ObservedObject var viewModel: VehicleStatsViewModel
 
@@ -25,8 +23,6 @@ struct JourneyReplayView: View {
     @State private var timer: Timer?
     @State private var showVehicleInfo = false
 
-    // MARK: - Telemetry Points (already limited to the selected period)
-
     private var allPoints: [TelemetryPoint] { viewModel.replayPoints }
 
     private var vehicleNumber: String { viewModel.vehicleId ?? "Vehicle" }
@@ -41,17 +37,11 @@ struct JourneyReplayView: View {
         return allPoints[safePlaybackIndex]
     }
 
-    /// Above 4x the timer stays at the 4x rate and each tick skips ahead instead,
-    /// so 8x / 16x stay smooth and light on the map.
     private var pointsPerTick: Int { max(1, Int(playbackSpeed / 4.0)) }
-
-    // MARK: - Body
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-
-                // MARK: Period being replayed
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Replaying: \(viewModel.selectedPeriod.rawValue)")
@@ -63,13 +53,9 @@ struct JourneyReplayView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
 
-                // MARK: Map
-
                 if !allPoints.isEmpty {
                     Map(position: $cameraPosition) {
 
-                        // Draw each trip separately to avoid connecting
-                        // unrelated journeys with artificial lines.
                         ForEach(viewModel.replayTrips, id: \.tripId) { trip in
                             if trip.points.count >= 2 {
                                 MapPolyline(
@@ -87,8 +73,6 @@ struct JourneyReplayView: View {
                             }
                         }
 
-                        // Vehicle icon at the current playback position.
-                        // Tap it to see the vehicle number and current speed.
                         if let point = currentPoint {
                             Annotation(
                                 "",
@@ -124,8 +108,6 @@ struct JourneyReplayView: View {
                     )
                     .frame(height: 300)
                 }
-
-                // MARK: Current Position
 
                 if let point = currentPoint {
                     VStack(alignment: .leading, spacing: 6) {
@@ -163,8 +145,6 @@ struct JourneyReplayView: View {
                     .padding(.horizontal)
                 }
 
-                // MARK: Playback Controls
-
                 HStack(spacing: 32) {
                     Button(action: resetPlayback) {
                         Image(systemName: "backward.end.fill")
@@ -198,8 +178,6 @@ struct JourneyReplayView: View {
                 .buttonStyle(.plain)
                 .padding(.vertical, 4)
 
-                // MARK: Timeline Slider
-
                 if allPoints.count > 1 {
                     VStack(spacing: 4) {
                         Slider(
@@ -210,7 +188,6 @@ struct JourneyReplayView: View {
                             Text("Journey progress")
                         }
                         .onChange(of: playbackIndex) { _, _ in
-                            // Keep the car visible when scrubbing.
                             if let point = currentPoint {
                                 moveCamera(to: point)
                             }
@@ -234,10 +211,11 @@ struct JourneyReplayView: View {
                 Spacer(minLength: 0)
             }
             .padding(.vertical)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity, alignment: .center)
             .navigationTitle("Journey Replay")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                // Data is already loaded and filtered by the stats page.
                 setupInitialCamera()
             }
             .onDisappear {
@@ -245,8 +223,6 @@ struct JourneyReplayView: View {
             }
         }
     }
-
-    // MARK: - Slider Binding
 
     private var playbackIndexBinding: Binding<Double> {
         Binding(
@@ -258,8 +234,6 @@ struct JourneyReplayView: View {
             }
         )
     }
-
-    // MARK: - Camera
 
     private func setupInitialCamera() {
         guard let first = allPoints.first else { return }
@@ -281,15 +255,12 @@ struct JourneyReplayView: View {
         )
     }
 
-    // MARK: - Playback
-
     private func togglePlay() {
         guard !allPoints.isEmpty else { return }
 
         if isPlaying {
             stopTimer()
         } else {
-            // Start again from the beginning if replay has finished.
             if safePlaybackIndex >= allPoints.count - 1 {
                 playbackIndex = 0
             }
@@ -363,7 +334,6 @@ struct JourneyReplayView: View {
     ReplayPreviewHost()
 }
 
-/// Loads the sample telemetry so the preview has something to replay.
 private struct ReplayPreviewHost: View {
     @StateObject private var viewModel = VehicleStatsViewModel()
 

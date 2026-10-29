@@ -2,10 +2,18 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = HomeViewModel()
     @State private var navPath = NavigationPath()
 
-    // Used to scroll to results section after search is triggered
+    private var vehicleColumns: [GridItem] {
+        if horizontalSizeClass == .regular {
+            return [GridItem(.adaptive(minimum: 360, maximum: 560), spacing: .spacingM)]
+        } else {
+            return [GridItem(.flexible())]
+        }
+    }
+
     private enum ScrollAnchor: String { case results }
 
     var body: some View {
@@ -14,24 +22,15 @@ struct HomeView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
 
-                        // ─────────────────────────────────────────────────
-                        // MARK: 1 — Top navigation bar
-                        // ─────────────────────────────────────────────────
                         HomeTopBarView(
                             userName: authViewModel.currentUser?.firstName ?? "there"
                         )
 
-                        // ─────────────────────────────────────────────────
-                        // MARK: 2 — Hero banner (hidden once search is active)
-                        // ─────────────────────────────────────────────────
                         if !viewModel.isSearchActive {
                             HeroBannerView()
                                 .transition(.move(edge: .top).combined(with: .opacity))
                         }
 
-                        // ─────────────────────────────────────────────────
-                        // MARK: 3 — Floating search card
-                        // ─────────────────────────────────────────────────
                         BookingSearchCard(
                             selectedBranch: $viewModel.selectedBranch,
                             selectedVehicleName: $viewModel.selectedVehicleName,
@@ -42,7 +41,6 @@ struct HomeView: View {
                                 withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                                     viewModel.search()
                                 }
-                                // Small delay so animation starts before scroll
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                                     withAnimation(.easeInOut(duration: 0.4)) {
                                         proxy.scrollTo(ScrollAnchor.results.rawValue, anchor: .top)
@@ -51,12 +49,12 @@ struct HomeView: View {
                             }
                         )
                         .padding(.horizontal, .spacingM)
-                        // Only overlap the hero when hero is visible
+                        .frame(maxWidth: 720)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .offset(y: viewModel.isSearchActive ? 0 : -28)
                         .padding(.bottom, viewModel.isSearchActive ? 0 : -28)
                         .animation(.spring(response: 0.45, dampingFraction: 0.82), value: viewModel.isSearchActive)
 
-                        // Validation error
                         if let message = viewModel.errorMessage {
                             Label(message, systemImage: "exclamationmark.triangle.fill")
                                 .font(.caption)
@@ -73,15 +71,9 @@ struct HomeView: View {
                         }
                         #endif
 
-                        // ─────────────────────────────────────────────────
-                        // MARK: 4 — Category chips (always visible)
-                        // ─────────────────────────────────────────────────
                         CategoryFilterView(selectedCategory: $viewModel.selectedCategory)
                             .padding(.top, .spacingL)
 
-                        // ─────────────────────────────────────────────────
-                        // MARK: 5 — Popular Vehicles (hidden when search active)
-                        // ─────────────────────────────────────────────────
                         if !viewModel.isSearchActive && !viewModel.featuredVehicles.isEmpty {
                             Group {
                                 HStack(alignment: .firstTextBaseline) {
@@ -115,12 +107,8 @@ struct HomeView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
 
-                        // ─────────────────────────────────────────────────
-                        // MARK: 6 — Results section (scrolled to on search)
-                        // ─────────────────────────────────────────────────
                         VStack(alignment: .leading, spacing: 0) {
 
-                            // Results header row
                             HStack(alignment: .bottom) {
                                 SectionHeader(
                                     title: resultsTitle,
@@ -128,7 +116,6 @@ struct HomeView: View {
                                 )
                                 Spacer()
                                 if viewModel.isSearchActive {
-                                    // "Clear" button — brings Popular Vehicles back
                                     Button {
                                         withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                                             viewModel.clearSearch()
@@ -147,10 +134,8 @@ struct HomeView: View {
                             .padding(.horizontal, .spacingM)
                             .padding(.top, .spacingL)
                             .padding(.bottom, .spacingXS)
-                            // Scroll anchor — this is what we jump to after search
                             .id(ScrollAnchor.results.rawValue)
 
-                            // Active search summary pill
                             if viewModel.isSearchActive, let period = viewModel.periodSummary {
                                 HStack(spacing: .spacingS) {
                                     Image(systemName: "calendar")
@@ -174,7 +159,6 @@ struct HomeView: View {
                                 .transition(.scale.combined(with: .opacity))
                             }
 
-                            // ── Vehicle list / empty state / loading ──
                             if viewModel.isLoading {
                                 VStack(spacing: .spacingM) {
                                     ProgressView()
@@ -192,16 +176,16 @@ struct HomeView: View {
                                 )
                                 .padding(.vertical, .spacingXL)
                             } else {
-                                LazyVStack(spacing: .spacingM) {
+                                LazyVGrid(columns: vehicleColumns, spacing: .spacingM) {
                                     ForEach(viewModel.filteredVehicles) { vehicle in
                                         NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
                                             VehicleCard(vehicle: vehicle)
-                                                .padding(.horizontal, .spacingM)
                                         }
                                         .buttonStyle(.plain)
                                         .transition(.move(edge: .bottom).combined(with: .opacity))
                                     }
                                 }
+                                .padding(.horizontal, .spacingM)
                                 .padding(.bottom, .spacingM)
                             }
                         }
@@ -221,7 +205,6 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Helpers
     private var resultsTitle: String {
         if viewModel.isSearchActive { return "Search Results" }
         if let category = viewModel.selectedCategory { return category.rawValue }
@@ -265,7 +248,6 @@ struct HomeView: View {
     #endif
 }
 
-// MARK: - Section Header
 struct SectionHeader: View {
     let title: String
     let subtitle: String

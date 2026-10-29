@@ -1,7 +1,5 @@
 import Foundation
 
-/// Sample catalogue used when Firestore has no vehicles yet, and as the payload
-/// for the debug "Seed Firestore" action.
 enum SeedData {
     static let vehicles: [Vehicle] = [
         Vehicle(

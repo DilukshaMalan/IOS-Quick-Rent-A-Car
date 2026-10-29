@@ -23,7 +23,6 @@ class AuthViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Auth State
     private func setupAuthStateListener() {
         authStateHandle = authService.addAuthStateListener { [weak self] firebaseUser in
             Task { @MainActor in
@@ -43,22 +42,16 @@ class AuthViewModel: ObservableObject {
             do {
                 self.currentUser = try await firestoreService.fetchUser(id: uid)
             } catch {
-                // User document may not exist yet (just registered)
             }
         }
     }
 
-    // MARK: - Diagnostics
-
-    /// Firebase's `localizedDescription` hides the real cause behind a generic
-    /// "internal error" message. In DEBUG, dump the full nested error chain.
     private func logDiagnostics(_ error: Error, context: String) {
         #if DEBUG
         print("❌ AuthViewModel.\(context) failed:\n\(error.diagnosticDescription)")
         #endif
     }
 
-    // MARK: - Sign In
     func signIn(email: String, password: String) async {
         guard email.isValidEmail else {
             errorMessage = "Please enter a valid email address."
@@ -81,7 +74,6 @@ class AuthViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Register
     func register(email: String, password: String, fullName: String, phoneNumber: String) async {
         guard email.isValidEmail else {
             errorMessage = "Please enter a valid email address."
@@ -116,7 +108,6 @@ class AuthViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Sign Out
     func signOut() {
         do {
             try authService.signOut()

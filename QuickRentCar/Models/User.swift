@@ -1,4 +1,3 @@
-
 import Foundation
 import FirebaseFirestore
 
@@ -42,7 +41,6 @@ struct User: Identifiable, Codable {
         self.createdAt = createdAt
     }
 
-    /// First word of fullName — used for the personalised home screen greeting.
     var firstName: String {
         fullName.components(separatedBy: " ").first ?? fullName
     }

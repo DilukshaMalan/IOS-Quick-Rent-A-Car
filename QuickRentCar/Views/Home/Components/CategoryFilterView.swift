@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Compact Category Filter (Change 4)
 struct CategoryFilterView: View {
     @Binding var selectedCategory: Vehicle.VehicleCategory?
 
@@ -8,7 +7,6 @@ struct CategoryFilterView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: .spacingS) {
 
-                // "All" chip
                 CategoryChip(
                     title: "All",
                     icon: "square.grid.2x2.fill",
@@ -30,12 +28,11 @@ struct CategoryFilterView: View {
                 }
             }
             .padding(.horizontal, .spacingM)
-            .padding(.vertical, 2)   // let shadow breathe
+            .padding(.vertical, 2)
         }
     }
 }
 
-// MARK: - Single Chip
 struct CategoryChip: View {
     let title: String
     let icon: String
@@ -59,7 +56,6 @@ struct CategoryChip: View {
                     : Color.gray.opacity(0.10)
             )
             .clipShape(Capsule())
-            // Subtle stroke when not selected so chips don't look flat
             .overlay(
                 Capsule()
                     .stroke(

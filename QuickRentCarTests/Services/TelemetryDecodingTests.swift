@@ -70,7 +70,7 @@ final class TelemetryDecodingTests: XCTestCase {
 
     func testVehicleTelemetry_derivesLastKnownLocationFromNewestPoint() {
         let t1 = Date().addingTimeInterval(-1000)
-        let t2 = Date() // newer
+        let t2 = Date()
         let p1 = GPSAPIPoint(timestamp: t1, latitude: 6.9000, longitude: 79.8000, speedKmh: 30.0, engineOn: true)
         let p2 = GPSAPIPoint(timestamp: t2, latitude: 7.0000, longitude: 79.9000, speedKmh: 50.0, engineOn: true)
 

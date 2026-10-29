@@ -49,7 +49,6 @@ final class VehicleTelemetryServiceTests: XCTestCase {
         )
         let telemetry = makeTelemetry(trips: [trip])
 
-        // Query today only (doesn't intersect trip 10 days ago)
         let interval = DateInterval(start: Date().startOfDay, duration: 86400)
         let stats = VehicleTelemetryService.shared.calculateStats(for: interval, telemetry: telemetry)
 
@@ -88,7 +87,6 @@ final class VehicleTelemetryServiceTests: XCTestCase {
 
     func testRentalPackageUsage_calculatesUsedRemainingAndPercent() {
         let now = Date()
-        // Two points roughly ~3 km apart
         let p1 = TelemetryPoint(timestamp: now, latitude: 6.9271, longitude: 79.8612, speedKmh: 50.0, engineOn: true)
         let p2 = TelemetryPoint(timestamp: now.addingTimeInterval(300), latitude: 6.9500, longitude: 79.8700, speedKmh: 50.0, engineOn: true)
 
@@ -131,7 +129,6 @@ final class VehicleTelemetryServiceTests: XCTestCase {
             distanceKmApprox: 50.0,
             points: [p1, p2]
         )
-        // Very small allowance to simulate exceeding limit
         let allowance: Double = 1.0
         let telemetry = makeTelemetry(trips: [trip], allowanceKm: allowance)
 

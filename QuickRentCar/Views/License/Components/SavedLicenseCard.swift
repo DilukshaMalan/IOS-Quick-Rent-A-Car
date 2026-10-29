@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shown instead of the scan prompt when the user already has a valid saved license.
 struct SavedLicenseCard: View {
     let maskedNumber: String
     let expiry: Date

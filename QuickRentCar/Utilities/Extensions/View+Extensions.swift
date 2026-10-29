@@ -1,8 +1,6 @@
 import SwiftUI
 
-// MARK: - View Modifiers
 extension View {
-    /// Apply rounded card style with background and shadow
     func cardStyle(cornerRadius: CGFloat = 16, shadowRadius: CGFloat = 6) -> some View {
         self
             .background(Color.fallbackCardBg)
@@ -10,7 +8,6 @@ extension View {
             .shadow(color: .black.opacity(0.08), radius: shadowRadius, x: 0, y: 2)
     }
 
-    /// Apply primary blue button style
     func primaryButtonStyle() -> some View {
         self
             .font(.headline)
@@ -21,7 +18,6 @@ extension View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
-    /// Apply secondary outline button style
     func secondaryButtonStyle() -> some View {
         self
             .font(.headline)
@@ -36,7 +32,6 @@ extension View {
             )
     }
 
-    /// Hide the keyboard
     func hideKeyboard() {
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder),
@@ -44,7 +39,6 @@ extension View {
         )
     }
 
-    /// Conditionally apply a modifier
     @ViewBuilder
     func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
         if condition {
@@ -55,7 +49,6 @@ extension View {
     }
 }
 
-// MARK: - Spacing Constants
 extension CGFloat {
     static let spacingXS: CGFloat = 4
     static let spacingS: CGFloat = 8

@@ -10,12 +10,10 @@ struct PickupMapView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // MARK: - Map
             Map(initialPosition: .region(MKCoordinateRegion(
                 center: pickupCoordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
             ))) {
-                // Vehicle/pickup location
                 Annotation("Pickup", coordinate: pickupCoordinate, anchor: .bottom) {
                     Image(systemName: "car.fill")
                         .font(.title2)
@@ -26,19 +24,15 @@ struct PickupMapView: View {
                         .shadow(radius: 4)
                 }
 
-                // Geofence circle
                 MapCircle(center: pickupCoordinate, radius: Constants.Location.geofenceRadiusMeters)
                     .foregroundStyle(Color.fallbackBlue.opacity(0.12))
                     .stroke(Color.fallbackBlue, lineWidth: 2)
 
-                // User location
                 UserAnnotation()
             }
             .ignoresSafeArea(edges: .top)
 
-            // MARK: - Bottom Sheet
             VStack(spacing: .spacingM) {
-                // Status
                 HStack {
                     VStack(alignment: .leading, spacing: .spacingXS) {
                         Text("Pickup Location")
@@ -60,7 +54,6 @@ struct PickupMapView: View {
                     }
                 }
 
-                // Geofence status
                 if viewModel.isInPickupZone {
                     Label("You're in the pickup zone!", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
@@ -71,7 +64,6 @@ struct PickupMapView: View {
                         .clipShape(RoundedRectangle(cornerRadius: .cornerRadiusS))
                 }
 
-                // Open in Maps
                 Button {
                     let url = URL(string: "maps://?daddr=\(pickupCoordinate.latitude),\(pickupCoordinate.longitude)")!
                     UIApplication.shared.open(url)

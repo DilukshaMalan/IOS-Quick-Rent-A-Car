@@ -1,8 +1,5 @@
 import SwiftUI
 
-// MARK: - Rental period section
-/// One summary card for the whole trip + quick duration chips.
-/// Tapping the card opens a sheet with a calendar to change the dates and times.
 struct BookingRentalPeriodSection: View {
     @Binding var pickupDate: Date
     @Binding var returnDate: Date
@@ -25,7 +22,6 @@ struct BookingRentalPeriodSection: View {
 
             QuickDurationChips(pickupDate: pickupDate, returnDate: $returnDate)
         }
-        // Moving the pick-up date keeps the rental length, instead of leaving the return date behind.
         .onChange(of: pickupDate) { oldValue, newValue in
             let shifted = returnDate.addingTimeInterval(newValue.timeIntervalSince(oldValue))
             returnDate = shifted > newValue ? shifted : newValue.adding(days: 1)
@@ -41,7 +37,6 @@ struct BookingRentalPeriodSection: View {
     }
 }
 
-// MARK: - Summary card
 struct BookingDateRangeCard: View {
     let pickupDate: Date
     let returnDate: Date
@@ -102,7 +97,6 @@ struct BookingDateRangeCard: View {
     }
 }
 
-// MARK: - Quick duration chips
 struct QuickDurationChips: View {
     let pickupDate: Date
     @Binding var returnDate: Date
@@ -143,7 +137,6 @@ struct QuickDurationChips: View {
     }
 }
 
-// MARK: - Editor sheet
 struct DateRangeEditorSheet: View {
     @Binding var pickupDate: Date
     @Binding var returnDate: Date
@@ -162,7 +155,6 @@ struct DateRangeEditorSheet: View {
     private var pickupRange: ClosedRange<Date> { Date().startOfDay...Date.distantFuture }
     private var returnRange: ClosedRange<Date> { pickupDate...Date.distantFuture }
 
-    /// Upcoming bookings on this vehicle, so people can avoid them.
     private var upcomingBooked: [DateRange] {
         Array(
             unavailablePeriods

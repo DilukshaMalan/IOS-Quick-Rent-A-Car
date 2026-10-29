@@ -1,12 +1,9 @@
 import SwiftUI
 
-// MARK: - Simplified Search Card (Figma-style)
-/// Pick-up location row + Pick-up & Drop-off dates side by side + Search button.
-/// Vehicle picker removed — vehicle type is handled by the category filter below.
 struct BookingSearchCard: View {
     @Binding var selectedBranch: Branch?
-    @Binding var selectedVehicleName: String?   // kept for ViewModel compatibility, not shown in UI
-    let vehicleNames: [String]                  // kept for ViewModel compatibility, not shown in UI
+    @Binding var selectedVehicleName: String?
+    let vehicleNames: [String]
     @Binding var pickupDate: Date
     @Binding var returnDate: Date
     let onSearch: () -> Void
@@ -14,7 +11,6 @@ struct BookingSearchCard: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            // MARK: Row 1 — Pick-up location
             Menu {
                 Picker("Branch", selection: $selectedBranch) {
                     Text("Any branch").tag(Branch?.none)
@@ -50,16 +46,13 @@ struct BookingSearchCard: View {
                 .padding(.vertical, 14)
             }
 
-            // Divider
             Rectangle()
                 .fill(Color.gray.opacity(0.12))
                 .frame(height: 1)
                 .padding(.horizontal, .spacingM)
 
-            // MARK: Row 2 — Dates side by side (exactly like Figma)
             HStack(spacing: 0) {
 
-                // Pick-up date
                 VStack(alignment: .leading, spacing: 3) {
                     Label("Pick-up Date", systemImage: "calendar")
                         .font(.caption)
@@ -78,12 +71,10 @@ struct BookingSearchCard: View {
                 .padding(.horizontal, .spacingM)
                 .padding(.vertical, 12)
 
-                // Vertical separator
                 Rectangle()
                     .fill(Color.gray.opacity(0.12))
                     .frame(width: 1, height: 50)
 
-                // Drop-off date
                 VStack(alignment: .leading, spacing: 3) {
                     Label("Drop-off Date", systemImage: "calendar")
                         .font(.caption)
@@ -103,13 +94,11 @@ struct BookingSearchCard: View {
                 .padding(.vertical, 12)
             }
 
-            // Divider
             Rectangle()
                 .fill(Color.gray.opacity(0.12))
                 .frame(height: 1)
                 .padding(.horizontal, .spacingM)
 
-            // MARK: Row 3 — Search button (full width, Figma blue)
             Button(action: onSearch) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")

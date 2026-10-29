@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Sticky bottom bar: tap-to-expand price details, total, and the
-/// "Continue to Driver's License" button.
 struct BookingContinueBar: View {
     let dailyRate: Double
     let days: Int
@@ -37,7 +35,6 @@ struct BookingContinueBar: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
-            // Total row — tap to show / hide the breakdown
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) { showsBreakdown.toggle() }
             } label: {

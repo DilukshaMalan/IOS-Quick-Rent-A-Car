@@ -20,20 +20,6 @@
                ReferencedContainer = "container:QuickRentCar.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AB12CD34EF56000000000009"
-               BuildableName = "QuickRentCarWidget.appex"
-               BlueprintName = "QuickRentCarWidget"
-               ReferencedContainer = "container:QuickRentCar.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

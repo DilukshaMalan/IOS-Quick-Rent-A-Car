@@ -1,11 +1,9 @@
 import SwiftUI
 
-// MARK: - Hero Banner (Figma-style)
 struct HeroBannerView: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
 
-            // Background image
             Image("hero_banner")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -13,7 +11,6 @@ struct HeroBannerView: View {
                 .frame(height: 210)
                 .clipped()
 
-            // Dark gradient scrim from bottom-left
             LinearGradient(
                 colors: [
                     Color.fallbackNavy.opacity(0.80),
@@ -24,7 +21,6 @@ struct HeroBannerView: View {
                 endPoint: .topTrailing
             )
 
-            // Text overlay (bottom-left, like Figma)
             VStack(alignment: .leading, spacing: 5) {
                 Text("Premium Cars\nfor Every Journey")
                     .font(.system(size: 22, weight: .bold))
@@ -49,7 +45,7 @@ struct HeroBannerView: View {
             .padding(.bottom, .spacingL)
         }
         .frame(height: 210)
-        .clipShape(Rectangle())     // no rounding on hero — full bleed
+        .clipShape(Rectangle())
     }
 }
 

@@ -15,7 +15,6 @@ struct BookingSuccessView: View {
 
     var body: some View {
         ZStack {
-            // Subtle background gradient
             LinearGradient(
                 colors: [Color.fallbackBlue.opacity(0.08), Color(.systemBackground)],
                 startPoint: .top, endPoint: .bottom
@@ -24,7 +23,6 @@ struct BookingSuccessView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: .spacingXL) {
-                    // ── Animated success icon ────────────────────────────────
                     ZStack {
                         Circle()
                             .fill(Color.fallbackBlue.opacity(0.1))
@@ -45,7 +43,6 @@ struct BookingSuccessView: View {
                     }
                     .padding(.top, .spacingXXL)
 
-                    // ── Title block ──────────────────────────────────────────
                     VStack(spacing: .spacingS) {
                         Text("Booking Confirmed!")
                             .font(.largeTitle.bold())
@@ -57,7 +54,6 @@ struct BookingSuccessView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
 
-                        // Booking ID chip
                         HStack(spacing: 6) {
                             Image(systemName: "number.square.fill")
                                 .foregroundStyle(Color.fallbackBlue)
@@ -74,7 +70,6 @@ struct BookingSuccessView: View {
                     .offset(y: animateContent ? 0 : 20)
                     .animation(.easeOut(duration: 0.45).delay(0.25), value: animateContent)
 
-                    // ── Booking summary card ─────────────────────────────────
                     VStack(alignment: .leading, spacing: .spacingM) {
                         Label("Your Trip Details", systemImage: "list.clipboard.fill")
                             .font(.headline)
@@ -122,7 +117,6 @@ struct BookingSuccessView: View {
                     .offset(y: animateContent ? 0 : 30)
                     .animation(.easeOut(duration: 0.5).delay(0.35), value: animateContent)
 
-                    // ── Info tip ─────────────────────────────────────────────
                     HStack(spacing: .spacingM) {
                         Image(systemName: "bell.badge.fill")
                             .foregroundStyle(Color.fallbackBlue)
@@ -139,7 +133,6 @@ struct BookingSuccessView: View {
                     .opacity(animateContent ? 1 : 0)
                     .animation(.easeOut(duration: 0.5).delay(0.45), value: animateContent)
 
-                    // ── Action buttons ───────────────────────────────────────
                     VStack(spacing: .spacingS) {
                         NavigationLink(destination: HomeView()) {
                             Label("Go to Home", systemImage: "house.fill")
@@ -162,6 +155,7 @@ struct BookingSuccessView: View {
             }
         }
         .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .tabBar)
         .onAppear {
             animateIcon = true
             animateContent = true
@@ -169,7 +163,6 @@ struct BookingSuccessView: View {
     }
 }
 
-// MARK: - Detail Row
 private struct SuccessDetailRow: View {
     let icon: String
     let label: String
@@ -195,18 +188,13 @@ private struct SuccessDetailRow: View {
 
 private struct HomeDestination: View {
     var body: some View {
-        // Dismiss the full navigation stack back to the root tab
-        // The ContentView / TabView will remain as the root
         EmptyView()
             .onAppear {
-                // Pop to root by clearing the navigation stack via the app's root coordinator
-                // We post a notification so ContentView can switch the tab back to Home
                 NotificationCenter.default.post(name: .navigateToHome, object: nil)
             }
     }
 }
 
-// MARK: - Notification Name
 extension Notification.Name {
     static let navigateToHome = Notification.Name("navigateToHome")
 }
@@ -223,4 +211,3 @@ extension Notification.Name {
         )
     }
 }
-

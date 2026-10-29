@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// "Step 1 of 2 · Trip details" with a segmented progress bar.
 struct BookingStepIndicator: View {
     let step: Int
     let total: Int

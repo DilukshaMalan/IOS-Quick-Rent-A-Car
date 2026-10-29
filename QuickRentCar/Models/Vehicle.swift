@@ -13,11 +13,10 @@ struct Vehicle: Identifiable, Codable {
     var fuelType: FuelType
     var transmission: TransmissionType
     var seats: Int
-    var includedMileage: Int         // km per day
+    var includedMileage: Int
     var description: String
     var specifications: [String: String]
     var isAvailable: Bool
-    var arModelURL: String?           // USDZ model filename for AR
     var rating: Double
     var reviewCount: Int
     var location: String
@@ -56,7 +55,6 @@ struct Vehicle: Identifiable, Codable {
         case manual = "Manual"
     }
 }
-
 
 extension Vehicle {
 

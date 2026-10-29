@@ -24,14 +24,8 @@ struct OnboardingView: View {
             color: Color(red: 0.0, green: 0.7, blue: 0.5)
         ),
         OnboardingPage(
-            title: "AR Preview",
-            subtitle: "See your vehicle in your real environment before booking with Augmented Reality.",
-            icon: "arkit",
-            color: Color(red: 0.6, green: 0.2, blue: 0.9)
-        ),
-        OnboardingPage(
             title: "Stay Informed",
-            subtitle: "Push notifications and a Home Screen widget keep you updated on your active rental.",
+            subtitle: "Push notifications keep you updated on your active rental.",
             icon: "bell.badge.fill",
             color: Color(red: 1.0, green: 0.5, blue: 0.0)
         )
@@ -39,7 +33,6 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack {
-            // MARK: - Page Content
             TabView(selection: $currentPage) {
                 ForEach(pages.indices, id: \.self) { index in
                     OnboardingPageView(page: pages[index])
@@ -48,7 +41,6 @@ struct OnboardingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
-            // MARK: - Page Dots
             HStack(spacing: 8) {
                 ForEach(pages.indices, id: \.self) { index in
                     Capsule()
@@ -59,7 +51,6 @@ struct OnboardingView: View {
             }
             .padding(.bottom, .spacingL)
 
-            // MARK: - CTA Button
             Button {
                 if currentPage < pages.count - 1 {
                     withAnimation { currentPage += 1 }
@@ -76,7 +67,6 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Page Model
 struct OnboardingPage {
     let title: String
     let subtitle: String
@@ -84,7 +74,6 @@ struct OnboardingPage {
     let color: Color
 }
 
-// MARK: - Page View
 struct OnboardingPageView: View {
     let page: OnboardingPage
 
@@ -120,7 +109,6 @@ struct OnboardingPageView: View {
     }
 }
 
-// MARK: - Forgot Password
 struct ForgotPasswordView: View {
     @Environment(\.dismiss) var dismiss
     @State private var email = ""

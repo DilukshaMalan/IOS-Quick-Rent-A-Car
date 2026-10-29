@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Featured Vehicle Card
 struct FeaturedVehicleCard: View {
     let vehicle: Vehicle
 

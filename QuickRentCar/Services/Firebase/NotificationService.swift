@@ -6,10 +6,8 @@ class NotificationService {
     static let shared = NotificationService()
     private init() {}
 
-    // MARK: - FCM Token
     func updateFCMToken(_ token: String) {
         UserDefaults.standard.set(token, forKey: Constants.UserDefaultsKeys.lastKnownFCMToken)
-        // Update token in Firestore for the current user if logged in
         Task {
             guard let userId = await AuthService.shared.currentUserId else { return }
             try? await FirestoreService.shared.updateUser(User(
@@ -21,7 +19,6 @@ class NotificationService {
         }
     }
 
-    // MARK: - Local Notifications
     func schedulePickupReminder(bookingId: String, vehicleName: String, pickupDate: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Pickup Reminder 🚗"
@@ -29,7 +26,6 @@ class NotificationService {
         content.sound = .default
         content.userInfo = ["bookingId": bookingId, "type": Constants.NotificationNames.pickupReminder]
 
-        // Trigger 1 hour before pickup
         let triggerDate = pickupDate.adding(days: 0).addingTimeInterval(-3600)
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)

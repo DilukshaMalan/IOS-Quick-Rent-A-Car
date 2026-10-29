@@ -8,10 +8,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Configure Firebase
         FirebaseApp.configure()
 
-        // Set up push notifications
         UNUserNotificationCenter.current().delegate = self
         Messaging.messaging().delegate = self
 

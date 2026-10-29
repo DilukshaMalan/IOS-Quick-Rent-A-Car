@@ -48,10 +48,8 @@ final class DateRangeTests: XCTestCase {
 
     func testOverlaps_withAdjacentOrSeparatedRanges_returnsFalse() {
         let baseStart = Date()
-        // Adjacent: r1 ends exactly when r2 starts
         let r1 = DateRange(start: baseStart, end: baseStart.adding(days: 3))
         let r2 = DateRange(start: baseStart.adding(days: 3), end: baseStart.adding(days: 6))
-        // Completely separated
         let r3 = DateRange(start: baseStart.adding(days: 7), end: baseStart.adding(days: 10))
 
         XCTAssertFalse(r1.overlaps(r2), "Adjacent ranges touching at the boundary should not overlap")

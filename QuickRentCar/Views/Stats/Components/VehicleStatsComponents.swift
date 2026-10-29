@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Vehicle number header
 struct VehicleInfoHeader: View {
     let vehicleNumber: String
     let rentalId: String?
@@ -36,14 +35,12 @@ struct VehicleInfoHeader: View {
     }
 }
 
-// MARK: - Custom date range
 struct CustomRangeCard: View {
     @Binding var start: Date
     @Binding var end: Date
     let available: ClosedRange<Date>
     let timeZone: TimeZone
 
-    // Clamped so the ranges can never be inverted (a reversed ClosedRange would crash).
     private var startRange: ClosedRange<Date> {
         let upper = min(max(end, available.lowerBound), available.upperBound)
         return available.lowerBound...upper
@@ -66,10 +63,6 @@ struct CustomRangeCard: View {
     }
 }
 
-// MARK: - Tappable vehicle icon for maps
-/// Shows a car icon. Tap it and the icon turns into an info card (vehicle number, current speed,
-/// engine state); tap the card and it turns back into the car icon.
-/// Selection lives in the parent so it survives live updates.
 struct VehicleMapMarker: View {
     let vehicleNumber: String
     let speedKmh: Double?

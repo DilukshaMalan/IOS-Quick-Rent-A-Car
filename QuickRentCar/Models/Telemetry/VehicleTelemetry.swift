@@ -1,10 +1,5 @@
-// MARK: - Telemetry Models
 import Foundation
 
-// Top-level JSON structure.
-// NOTE: `tripDetectionAssumption` and `routeGeometry` are objects in the seed JSON and the app
-// never reads them, so they are intentionally NOT declared here. Swift's Codable ignores
-// JSON keys that have no matching property.
 struct VehicleTelemetry: Codable {
     let schemaVersion: String
     let vehicleId: String
@@ -46,8 +41,6 @@ struct TelemetryLocation: Codable, Identifiable {
     var id: String { "\(latitude)-\(longitude)-\(timestamp.timeIntervalSince1970)" }
 }
 
-// Helper for date decoding. The seed file uses plain ISO8601 with an offset
-// (e.g. 2026-10-14T07:30:00+05:30) and no fractional seconds, which `.iso8601` handles.
 extension JSONDecoder {
     static var telemetryDecoder: JSONDecoder {
         let decoder = JSONDecoder()
@@ -56,14 +49,8 @@ extension JSONDecoder {
     }
 }
 
-// MARK: - API → VehicleTelemetry conversion
 extension VehicleTelemetry {
 
-    /// Builds a `VehicleTelemetry` value from a `GPSAPITripsResponse`.
-    /// Fields that the API does not supply (schemaVersion, rentalId, geographicalScope,
-    /// packageAllowanceKm, rentalReturnDate) are filled with sensible defaults so the
-    /// rest of the app (VehicleStatsViewModel, VehicleTelemetryService) continues to work
-    /// without any changes.
     static func fromAPI(
         response: GPSAPITripsResponse,
         rentalId: String = "QR001-TRIP-001",
@@ -71,7 +58,6 @@ extension VehicleTelemetry {
         rentalReturnDate: Date = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
     ) -> VehicleTelemetry {
 
-        // Convert each API trip → TelemetryTrip
         let trips: [TelemetryTrip] = response.trips.map { apiTrip in
             let points: [TelemetryPoint] = (apiTrip.points ?? []).map { pt in
                 TelemetryPoint(
@@ -96,7 +82,6 @@ extension VehicleTelemetry {
             )
         }
 
-        // Derive lastKnownLocation from the newest point across all trips
         let allPoints = trips.flatMap { $0.points }
         let newest = allPoints.max(by: { $0.timestamp < $1.timestamp })
         let lastKnown = TelemetryLocation(

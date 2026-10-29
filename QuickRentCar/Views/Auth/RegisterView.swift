@@ -15,7 +15,6 @@ struct RegisterView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacingL) {
-                // MARK: - Header
                 VStack(spacing: .spacingS) {
                     Text("Create Account")
                         .font(.largeTitle.bold())
@@ -29,7 +28,6 @@ struct RegisterView: View {
                 }
                 .padding(.top, .spacingL)
 
-                // MARK: - Fields
                 VStack(spacing: .spacingM) {
                     inputField("Full Name", text: $fullName, contentType: .name)
                     inputField("Email", text: $email, contentType: .emailAddress, keyboardType: .emailAddress)
@@ -45,7 +43,6 @@ struct RegisterView: View {
                     }
                 }
 
-                // MARK: - Error
                 if let error = authViewModel.errorMessage {
                     Text(error)
                         .font(.footnote)
@@ -53,7 +50,6 @@ struct RegisterView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                // MARK: - Register Button
                 Button {
                     Task {
                         await authViewModel.register(
@@ -75,7 +71,6 @@ struct RegisterView: View {
                 }
                 .disabled(authViewModel.isLoading || !passwordsMatch)
 
-                // MARK: - Back to Login
                 Button("Already have an account? Sign In") { dismiss() }
                     .font(.subheadline)
                     .foregroundStyle(Color.fallbackBlue)
@@ -87,7 +82,6 @@ struct RegisterView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - Helpers
     @ViewBuilder
     private func inputField(
         _ placeholder: String,

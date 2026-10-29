@@ -1,9 +1,5 @@
 import Foundation
 
-/// The branches a customer can collect a vehicle from and return it to.
-///
-/// `rawValue` is the string that gets stored in `Vehicle.location` and
-/// `Booking.pickupLocation` / `Booking.dropOffLocation`, so it must stay stable.
 enum Branch: String, CaseIterable, Identifiable, Codable {
     case katunayakeAirport = "Airport (Katunayake)"
     case colombo = "Colombo"

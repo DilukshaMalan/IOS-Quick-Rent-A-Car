@@ -3,7 +3,6 @@ import XCTest
 
 final class StringValidationTests: XCTestCase {
 
-    // MARK: - Email Validation
     func testIsValidEmail_withStandardValidEmail_returnsTrue() {
         let validEmails = [
             "user@example.com",
@@ -33,7 +32,6 @@ final class StringValidationTests: XCTestCase {
         }
     }
 
-    // MARK: - Password Validation
     func testIsValidPassword_withEightOrMoreCharacters_returnsTrue() {
         XCTAssertTrue("12345678".isValidPassword)
         XCTAssertTrue("StrongP@ssw0rd!".isValidPassword)
@@ -45,7 +43,6 @@ final class StringValidationTests: XCTestCase {
         XCTAssertFalse("".isValidPassword)
     }
 
-    // MARK: - Phone Number Validation
     func testIsValidPhoneNumber_withTenOrMoreDigits_returnsTrue() {
         XCTAssertTrue("0771234567".isValidPhoneNumber)
         XCTAssertTrue("+94 77 123 4567".isValidPhoneNumber)
@@ -58,7 +55,6 @@ final class StringValidationTests: XCTestCase {
         XCTAssertFalse("".isValidPhoneNumber)
     }
 
-    // MARK: - Trimmed & IsNotEmpty
     func testTrimmed_removesSurroundingWhitespaceAndNewlines() {
         let original = "  \n  Quick Rent Car \t \n"
         XCTAssertEqual(original.trimmed, "Quick Rent Car")

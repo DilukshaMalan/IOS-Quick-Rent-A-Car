@@ -21,12 +21,10 @@ class LocationService: NSObject, ObservableObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
 
-    // MARK: - Permission
     func requestPermission() {
         locationManager.requestWhenInUseAuthorization()
     }
 
-    // MARK: - Start / Stop Updates
     func startUpdating() {
         locationManager.startUpdatingLocation()
     }
@@ -35,11 +33,10 @@ class LocationService: NSObject, ObservableObject {
         locationManager.stopUpdatingLocation()
     }
 
-    // MARK: - Distance Calculation
     func distanceTo(coordinate: CLLocationCoordinate2D) -> Double? {
         guard let current = currentLocation else { return nil }
         let target = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        return current.distance(from: target)  // metres
+        return current.distance(from: target)
     }
 
     func distanceString(to coordinate: CLLocationCoordinate2D) -> String {
@@ -51,7 +48,6 @@ class LocationService: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Geofencing
     func startMonitoringPickupZone(center: CLLocationCoordinate2D, identifier: String) {
         let region = CLCircularRegion(
             center: center,
@@ -81,7 +77,6 @@ class LocationService: NSObject, ObservableObject {
     }
 }
 
-// MARK: - CLLocationManagerDelegate
 extension LocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         Task { @MainActor in

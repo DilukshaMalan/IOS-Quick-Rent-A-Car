@@ -10,7 +10,6 @@ struct LoginView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: .spacingXL) {
-                // MARK: - Header
                 VStack(spacing: .spacingM) {
                     Image(systemName: "car.fill")
                         .font(.system(size: 60))
@@ -26,7 +25,6 @@ struct LoginView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                // MARK: - Fields
                 VStack(spacing: .spacingM) {
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
@@ -50,7 +48,6 @@ struct LoginView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
-                // MARK: - Error
                 if let error = authViewModel.errorMessage {
                     Text(error)
                         .font(.footnote)
@@ -58,7 +55,6 @@ struct LoginView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                // MARK: - Sign In Button
                 Button {
                     Task { await authViewModel.signIn(email: email, password: password) }
                 } label: {
@@ -76,7 +72,6 @@ struct LoginView: View {
                 }
                 .disabled(authViewModel.isLoading)
 
-                // MARK: - Register
                 HStack {
                     Text("Don't have an account?")
                         .foregroundStyle(.secondary)

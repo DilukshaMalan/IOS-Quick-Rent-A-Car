@@ -1,12 +1,10 @@
 import SwiftUI
 
-// MARK: - Top Navigation Bar  (Figma-style)
 struct HomeTopBarView: View {
     let userName: String
 
     var body: some View {
         HStack(alignment: .center) {
-            // Left: logo + title stack
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -29,7 +27,6 @@ struct HomeTopBarView: View {
 
             Spacer()
 
-            // Right: notification bell
             NavigationLink(destination: Text("Notifications").padding()) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "bell.fill")

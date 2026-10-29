@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Shown as a full-screen overlay when the app is re-opened while locked.
-/// The user must pass Face ID / Touch ID to dismiss it.
 struct AppLockView: View {
     let onUnlock: () -> Void
 
@@ -12,13 +10,11 @@ struct AppLockView: View {
 
     var body: some View {
         ZStack {
-            // Blurred background so app content is hidden
             Color.black.opacity(0.92).ignoresSafeArea()
 
             VStack(spacing: .spacingXL) {
                 Spacer()
 
-                // App icon
                 ZStack {
                     Circle()
                         .fill(Color.fallbackBlue.opacity(0.15))
@@ -40,7 +36,6 @@ struct AppLockView: View {
 
                 Spacer()
 
-                // Face ID / Touch ID button
                 VStack(spacing: .spacingM) {
                     Button {
                         Task { await authenticate() }
@@ -75,7 +70,6 @@ struct AppLockView: View {
                 .padding(.bottom, .spacingXXL)
             }
         }
-        // Auto-prompt Face ID as soon as this screen appears
         .onAppear {
             Task { await authenticate() }
         }

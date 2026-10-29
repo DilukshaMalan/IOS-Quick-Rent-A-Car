@@ -2,7 +2,6 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
-// MARK: - Which side are we picking?
 private enum LicenseSide { case front, rear }
 
 struct LicenseScanView: View {
@@ -10,7 +9,6 @@ struct LicenseScanView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = LicenseOCRViewModel()
 
-    // Source picker state
     @State private var activeSide: LicenseSide = .front
     @State private var showSourceChoice = false
     @State private var showPicker = false
@@ -20,7 +18,6 @@ struct LicenseScanView: View {
         NavigationStack {
             Group {
                 if viewModel.scanComplete, let info = viewModel.extractedInfo {
-                    // ── Step 3: Review results ──────────────────────────────
                     LicenseConfirmView(
                         info: info,
                         onSave: {
@@ -34,10 +31,8 @@ struct LicenseScanView: View {
                         onRescan: { viewModel.reset() }
                     )
                 } else {
-                    // ── Step 1 & 2: Capture both sides ─────────────────────
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: .spacingL) {
-                            // Header
                             VStack(spacing: .spacingS) {
                                 Image(systemName: "creditcard.viewfinder")
                                     .font(.system(size: 64))
@@ -53,7 +48,6 @@ struct LicenseScanView: View {
                             }
                             .padding(.top, .spacingL)
 
-                            // ── Front card ─────────────────────────────────
                             SidePickerCard(
                                 title: "Front Side",
                                 subtitle: "Name • Licence Number • Date of Birth",
@@ -64,7 +58,6 @@ struct LicenseScanView: View {
                                 showSourceChoice = true
                             }
 
-                            // ── Rear card ──────────────────────────────────
                             SidePickerCard(
                                 title: "Rear Side",
                                 subtitle: "Expiry Date",
@@ -75,7 +68,6 @@ struct LicenseScanView: View {
                                 showSourceChoice = true
                             }
 
-                            // Error message
                             if let error = viewModel.errorMessage {
                                 Text(error)
                                     .font(.caption)
@@ -84,7 +76,6 @@ struct LicenseScanView: View {
                                     .padding(.horizontal)
                             }
 
-                            // ── Scan button (enabled once both sides chosen) ─
                             if viewModel.isScanning {
                                 VStack(spacing: .spacingS) {
                                     ProgressView()
@@ -108,6 +99,8 @@ struct LicenseScanView: View {
                             Spacer(minLength: .spacingXL)
                         }
                         .padding(.bottom, .spacingXL)
+                        .frame(maxWidth: 680)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
@@ -118,7 +111,6 @@ struct LicenseScanView: View {
                     Button("Close") { dismiss() }
                 }
             }
-            // Source-choice action sheet
             .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
                     Button("Take Photo") {
@@ -134,7 +126,6 @@ struct LicenseScanView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             }
-            // Image picker sheet
             .sheet(isPresented: $showPicker) {
                 LicenseCameraView(sourceType: imageSource) { image in
                     if activeSide == .front {
@@ -148,7 +139,6 @@ struct LicenseScanView: View {
     }
 }
 
-// MARK: - Side Picker Card
 private struct SidePickerCard: View {
     let title: String
     let subtitle: String
@@ -170,7 +160,6 @@ private struct SidePickerCard: View {
                     )
 
                 if let captured = image {
-                    // Show the chosen image
                     Image(uiImage: captured)
                         .resizable()
                         .scaledToFill()
@@ -182,7 +171,6 @@ private struct SidePickerCard: View {
                                 .padding(10)
                         }
                         .overlay(alignment: .bottom) {
-                            // Tap-to-retake label
                             Text("Tap to retake")
                                 .font(.caption2.bold())
                                 .foregroundStyle(.white)
@@ -197,7 +185,6 @@ private struct SidePickerCard: View {
                                 )
                         }
                 } else {
-                    // Placeholder
                     VStack(spacing: .spacingS) {
                         Image(systemName: systemIcon)
                             .font(.system(size: 36))
@@ -225,8 +212,6 @@ private struct SidePickerCard: View {
     }
 }
 
-
-// MARK: - Confirm Extracted Fields
 struct LicenseConfirmView: View {
     @State var info: LicenseInfo
     let onSave: () -> Void
@@ -265,6 +250,8 @@ struct LicenseConfirmView: View {
                 Button("Rescan", action: onRescan).secondaryButtonStyle()
             }
             .padding()
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
     }
 }
@@ -299,9 +286,7 @@ struct ReadOnlyField: View {
     }
 }
 
-// MARK: - Camera View (UIKit wrapper)
 struct LicenseCameraView: UIViewControllerRepresentable {
-    /// Defaults to the camera, so callers that only pass `onCapture` (like the booking license page) still compile.
     var sourceType: UIImagePickerController.SourceType = .camera
     let onCapture: (UIImage) -> Void
 

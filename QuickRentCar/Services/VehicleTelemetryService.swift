@@ -1,4 +1,3 @@
-// MARK: - Vehicle Telemetry Service
 import Foundation
 import CoreLocation
 
@@ -14,9 +13,8 @@ final class VehicleTelemetryService {
     static let shared = VehicleTelemetryService()
     private init() {}
     
-    // Haversine distance in kilometres between two lat/lon points
     private func haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
-        let R = 6371.0 // Earth radius in km
+        let R = 6371.0
         let dLat = (lat2 - lat1) * .pi / 180.0
         let dLon = (lon2 - lon1) * .pi / 180.0
         let a = sin(dLat/2) * sin(dLat/2) +
@@ -26,7 +24,6 @@ final class VehicleTelemetryService {
         return R * c
     }
     
-    // Distance for a series of points (consecutive)
     private func distance(for points: [TelemetryPoint]) -> Double {
         guard points.count > 1 else { return 0 }
         var total = 0.0
@@ -39,12 +36,10 @@ final class VehicleTelemetryService {
         return total
     }
     
-    // Filter points that fall inside a date interval
     private func filteredPoints(in interval: DateInterval, from points: [TelemetryPoint]) -> [TelemetryPoint] {
         points.filter { interval.contains($0.timestamp) }
     }
     
-    // Calculate stats for a given interval (today/week/month) using the telemetry root
     func calculateStats(for interval: DateInterval, telemetry: VehicleTelemetry) -> TelemetryStats {
         var allPoints: [TelemetryPoint] = []
         var tripCount = 0
@@ -52,19 +47,15 @@ final class VehicleTelemetryService {
         var totalDrivingTime: Double = 0
         
         for trip in telemetry.trips {
-            // Check if trip overlaps interval
             let tripInterval = DateInterval(start: trip.startTime, end: trip.endTime)
             if interval.intersects(tripInterval) {
-                // Extract points that lie inside the interval
                 let points = filteredPoints(in: interval, from: trip.points)
                 if !points.isEmpty {
                     allPoints.append(contentsOf: points)
                     tripCount += 1
-                    // Driving time is the time span of the filtered points
                     if let first = points.first, let last = points.last {
                         totalDrivingTime += last.timestamp.timeIntervalSince(first.timestamp)
                     }
-                    // Max speed within these points
                     for pt in points {
                         if let sp = pt.speedKmh, sp > maxSpeed {
                             maxSpeed = sp
@@ -82,7 +73,6 @@ final class VehicleTelemetryService {
                               tripCount: tripCount)
     }
     
-    // Rental package usage – sum distance of all trips belonging to the rental
     func rentalPackageUsage(telemetry: VehicleTelemetry) -> (usedKm: Double, remainingKm: Double, percentUsed: Double) {
         let totalDist = distance(for: telemetry.trips.flatMap { $0.points })
         let remaining = max(0, telemetry.packageAllowanceKm - totalDist)

@@ -1,50 +1,76 @@
 import SwiftUI
 import MapKit
 
-// MARK: - Navigation Screen (opened from an ongoing booking)
 struct VehicleNavigationView: View {
     let booking: Booking
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = VehicleNavigationViewModel()
     @State private var camera: MapCameraPosition = .automatic
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: .spacingM) {
-                mapCard
-                infoCard
-                actionButtons
-
-                NavigationLink {
-                    BookingDetailView(booking: booking)
-                } label: {
-                    Label("Booking details", systemImage: "doc.text")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.fallbackBlue)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, .spacingS)
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.fallbackNavy)
+                        .frame(width: 36, height: 36)
+                        .background(Color.gray.opacity(0.09))
+                        .clipShape(Circle())
                 }
-            }
-            .padding(.horizontal, .spacingM)
-            .padding(.top, .spacingM)
-            .padding(.bottom, .spacingXXL)
-        }
-        .background(Color(UIColor.systemGroupedBackground))
-        .navigationTitle("Find My Vehicle")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+
+                Spacer()
+
+                Text("Find My Vehicle")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color.fallbackNavy)
+
+                Spacer()
+
                 Button {
                     Task { await viewModel.load() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.fallbackNavy)
+                        .frame(width: 36, height: 36)
+                        .background(Color.gray.opacity(0.09))
+                        .clipShape(Circle())
                 }
                 .disabled(viewModel.state == .loading || viewModel.isRouting)
             }
+            .padding(.horizontal, .spacingM)
+            .padding(.top, .spacingS)
+            .padding(.bottom, .spacingS)
+            .background(Color(UIColor.systemGroupedBackground))
+
+            ScrollView {
+                VStack(spacing: .spacingM) {
+                    mapCard
+                    infoCard
+                    actionButtons
+
+                    NavigationLink {
+                        BookingDetailView(booking: booking)
+                    } label: {
+                        Label("Booking details", systemImage: "doc.text")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.fallbackBlue)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, .spacingS)
+                    }
+                }
+                .padding(.horizontal, .spacingM)
+                .padding(.top, .spacingM)
+                .padding(.bottom, .spacingXXL)
+            }
         }
+        .background(Color(UIColor.systemGroupedBackground))
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .tabBar)
         .task { await viewModel.load() }
     }
 
-    // MARK: Map
     private var mapCard: some View {
         ZStack(alignment: .bottom) {
             Map(position: $camera) {
@@ -58,13 +84,11 @@ struct VehicleNavigationView: View {
                         .tint(.green)
 
                     if let route = viewModel.route {
-                        // Road route: a white outline under the blue line keeps it readable on any map.
                         MapPolyline(coordinates: route.coordinates)
                             .stroke(.white, lineWidth: 9)
                         MapPolyline(coordinates: route.coordinates)
                             .stroke(Color.fallbackBlue, lineWidth: 5)
                     } else if !viewModel.isRouting {
-                        // No routing source worked: dashed straight line as a rough guide.
                         MapPolyline(coordinates: [VehicleNavigationViewModel.origin, dest])
                             .stroke(Color.fallbackBlue.opacity(0.6),
                                     style: StrokeStyle(lineWidth: 4, dash: [8, 6]))
@@ -96,7 +120,6 @@ struct VehicleNavigationView: View {
         .onChange(of: viewModel.route?.coordinates.count) { _, _ in fitCamera() }
     }
 
-    /// Zooms the map so the origin, the vehicle and the whole route are visible.
     private func fitCamera() {
         guard let dest = viewModel.vehicleCoordinate else { return }
         var rect = MKMapRect.null
@@ -112,7 +135,6 @@ struct VehicleNavigationView: View {
         camera = .rect(padded)
     }
 
-    // MARK: Info
     @ViewBuilder
     private var infoCard: some View {
         VStack(alignment: .leading, spacing: .spacingM) {
@@ -174,7 +196,6 @@ struct VehicleNavigationView: View {
         .cardStyle()
     }
 
-    /// Shown when no routing source could draw the road route.
     private var routeFailureNote: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Road route not available – showing a straight line.",
@@ -228,7 +249,6 @@ struct VehicleNavigationView: View {
         }
     }
 
-    // MARK: Buttons
     @ViewBuilder
     private var actionButtons: some View {
         let enabled = viewModel.vehicleCoordinate != nil
@@ -253,7 +273,6 @@ struct VehicleNavigationView: View {
         }
     }
 
-    // MARK: Formatting
     private static func formatDistance(_ meters: CLLocationDistance) -> String {
         meters < 1000
             ? String(format: "%.0f m", meters)

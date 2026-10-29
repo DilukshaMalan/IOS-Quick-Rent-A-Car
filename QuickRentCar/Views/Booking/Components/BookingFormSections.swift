@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Section title
 struct SectionLabel: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -11,7 +10,6 @@ struct SectionLabel: View {
     }
 }
 
-// MARK: - Shared field look
 private extension View {
     func branchFieldStyle() -> some View {
         self
@@ -22,9 +20,6 @@ private extension View {
     }
 }
 
-// MARK: - Location section
-/// Pick-up is fixed to the vehicle's own branch; drop-off defaults to the same branch
-/// and can be switched to any other branch from a menu (no typing).
 struct BookingLocationSection: View {
     let pickupLocation: String
     @Binding var dropOffLocation: String
@@ -57,7 +52,6 @@ struct BookingLocationSection: View {
     }
 }
 
-/// Read-only branch row (used for the fixed pick-up branch).
 struct BranchInfoRow: View {
     let icon: String
     let title: String
@@ -87,14 +81,12 @@ struct BranchInfoRow: View {
     }
 }
 
-/// Drop-off branch chooser — a menu of the known branches.
 struct DropOffBranchMenu: View {
     @Binding var selection: String
     let pickupLocation: String
 
     private var options: [String] {
         var names = Branch.allCases.map(\.rawValue)
-        // Safety net for older vehicles whose location isn't one of the known branches
         if !names.contains(pickupLocation) { names.insert(pickupLocation, at: 0) }
         return names
     }

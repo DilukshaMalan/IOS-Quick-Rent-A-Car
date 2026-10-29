@@ -6,13 +6,10 @@ class FirestoreService {
     private let db = Firestore.firestore()
     private init() {}
 
-    // MARK: - Generic Helpers
-
     private func collection(_ name: String) -> CollectionReference {
         db.collection(name)
     }
 
-    // MARK: - Users
     func createUser(_ user: User) async throws {
         guard let id = user.id else { throw FirestoreError.missingID }
         try collection(Constants.Firestore.users).document(id).setData(from: user)
@@ -113,9 +110,7 @@ class FirestoreService {
             .updateData(["status": status.rawValue])
     }
 
-    // MARK: - Payments
     func fetchPayments(userId: String) async throws -> [PaymentRecord] {
-        // Newest first, sorted in Swift to avoid needing a composite index.
         let snapshot = try await collection(Constants.Firestore.payments)
             .whereField("userId", isEqualTo: userId)
             .getDocuments()
@@ -124,7 +119,6 @@ class FirestoreService {
             .sorted { $0.transactionDate > $1.transactionDate }
     }
 
-    // MARK: - Driving Stats
     func fetchStats(userId: String) async throws -> [DrivingStats] {
         let snapshot = try await collection(Constants.Firestore.stats)
             .whereField("userId", isEqualTo: userId)
@@ -132,11 +126,6 @@ class FirestoreService {
         return snapshot.documents.compactMap { try? $0.data(as: DrivingStats.self) }
     }
 
-    // MARK: - Seeding
-
-    /// Writes the supplied vehicles using each vehicle's `id` as the document ID, so running
-    /// it again overwrites instead of duplicating. Backs the debug "Seed Firestore" action
-    /// that fills an empty database with the sample catalogue.
     func seedVehicles(_ vehicles: [Vehicle]) async throws {
         let batch = db.batch()
         for vehicle in vehicles {
@@ -148,7 +137,6 @@ class FirestoreService {
     }
 }
 
-// MARK: - Errors
 enum FirestoreError: LocalizedError {
     case missingID
     case decodingFailed

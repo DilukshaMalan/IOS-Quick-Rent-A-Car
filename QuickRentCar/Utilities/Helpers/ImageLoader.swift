@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Async image loader with caching using SwiftUI's AsyncImage
 struct RemoteImageView: View {
     let url: String
     var contentMode: ContentMode = .fill

@@ -15,7 +15,7 @@ final class PriceCalculatorTests: XCTestCase {
 
     func testTotalPrice_sameDayRental_enforcesMinimumOneDay() {
         let pickup = Date()
-        let returnDate = pickup // same day
+        let returnDate = pickup
         let dailyRate: Double = 80.0
 
         let total = PriceCalculator.totalPrice(dailyRate: dailyRate, pickupDate: pickup, returnDate: returnDate)
@@ -40,7 +40,6 @@ final class PriceCalculatorTests: XCTestCase {
 
         let totalWithTax = PriceCalculator.totalWithTax(dailyRate: dailyRate, pickupDate: pickup, returnDate: returnDate)
 
-        // Subtotal = 200.0, Tax = 20.0, Total = 220.0
         XCTAssertEqual(totalWithTax, 220.0, accuracy: 0.001, "Total with 10% tax on 2 days @ 100.0 should be 220.0")
     }
 

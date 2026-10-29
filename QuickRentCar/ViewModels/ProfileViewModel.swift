@@ -27,7 +27,6 @@ class ProfileViewModel: ObservableObject {
     }
 
     func toggleFaceID() {
-        // Persist the current published value (set by the Toggle binding) to UserDefaults
         BiometricAuthService.shared.isFaceIDEnabled = isFaceIDEnabled
     }
 

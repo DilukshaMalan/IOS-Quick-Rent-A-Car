@@ -4,11 +4,9 @@ import UIKit
 @MainActor
 class LicenseOCRViewModel: ObservableObject {
 
-    // MARK: - Two-side capture
     @Published var frontImage: UIImage?
     @Published var rearImage: UIImage?
 
-    // Legacy single-image capture (kept for DriverLicenseScanView compatibility)
     @Published var capturedImage: UIImage?
 
     @Published var extractedInfo: LicenseInfo?
@@ -17,13 +15,11 @@ class LicenseOCRViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var scanComplete = false
 
-    /// True once both sides have been selected and we're ready to scan.
     var readyToScan: Bool { frontImage != nil && rearImage != nil }
 
     private let ocrService = VisionOCRService.shared
     private let firestoreService = FirestoreService.shared
 
-    // MARK: - Two-side scan (front: name/number/DOB  |  rear: expiry)
     func processBothSides() async {
         guard let front = frontImage, let rear = rearImage else {
             errorMessage = "Please select both the front and rear of your licence."
@@ -47,7 +43,6 @@ class LicenseOCRViewModel: ObservableObject {
         isScanning = false
     }
 
-    // MARK: - Single-image scan (legacy / booking flow)
     func processImage(_ image: UIImage) async {
         capturedImage = image
         isScanning = true
@@ -64,7 +59,6 @@ class LicenseOCRViewModel: ObservableObject {
         isScanning = false
     }
 
-    // MARK: - Save to Profile
     func saveLicenseInfo(userId: String) async {
         guard let info = extractedInfo else { return }
         isSaving = true
@@ -85,8 +79,6 @@ class LicenseOCRViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
-
-
 
     func saveLicense(merging user: User) async -> User? {
         guard let info = extractedInfo else { return nil }
@@ -109,7 +101,6 @@ class LicenseOCRViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Reset
     func reset() {
         frontImage = nil
         rearImage = nil

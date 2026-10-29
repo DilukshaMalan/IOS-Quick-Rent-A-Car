@@ -1,32 +1,26 @@
 import SwiftUI
 
-// MARK: - Vehicle List Card  (matches Figma "Available Vehicles" design)
 struct VehicleCard: View {
     let vehicle: Vehicle
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // ── Top row: image + details ──────────────────────────
             HStack(alignment: .center, spacing: .spacingM) {
 
-                // Left: vehicle image — square, no corner clip on right side
                 RemoteImageView(url: vehicle.imageURL)
                     .frame(width: 110, height: 90)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .background(Color.gray.opacity(0.06))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                // Right: name + specs + price
                 VStack(alignment: .leading, spacing: 5) {
 
-                    // Vehicle name
                     Text(vehicle.name)
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(Color.fallbackNavy)
                         .lineLimit(1)
 
-                    // Specs row: "7 Seats • Diesel • Automatic"
                     Text([
                         "\(vehicle.passengerCapacity) Seats",
                         vehicle.fuelType.rawValue,
@@ -36,12 +30,10 @@ struct VehicleCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                    // Mileage line: "100 km/day included"
                     Text("\(vehicle.includedMileage) km/day included")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
 
-                    // Price
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(PriceCalculator.format(vehicle.dailyPrice))
                             .font(.system(size: 16, weight: .bold))
@@ -57,7 +49,6 @@ struct VehicleCard: View {
             .padding(.top, .spacingM)
             .padding(.bottom, .spacingM)
 
-            // ── "View Details" button — full width, blue ─────────
             NavigationLink(destination: VehicleDetailView(vehicle: vehicle)) {
                 Text("View Details")
                     .font(.system(size: 15, weight: .bold))
@@ -76,7 +67,6 @@ struct VehicleCard: View {
     }
 }
 
-// MARK: - Spec Pill  (kept for other usages)
 struct SpecPill: View {
     let icon: String
     let value: String
@@ -96,7 +86,6 @@ struct SpecPill: View {
     }
 }
 
-// Backwards-compatibility alias
 typealias SpecBadge = SpecPill
 
 #Preview {

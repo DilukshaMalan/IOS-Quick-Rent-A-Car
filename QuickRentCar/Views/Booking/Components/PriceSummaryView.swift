@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Price breakdown (rate × days, tax, included mileage). Flat — it sits inside the sticky bar,
-/// which already shows the total.
 struct PriceSummaryView: View {
     let dailyRate: Double
     let days: Int

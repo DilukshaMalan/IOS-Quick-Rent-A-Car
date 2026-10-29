@@ -1,14 +1,6 @@
 import Foundation
 
 extension Error {
-    /// Firebase's `localizedDescription` is often a useless wrapper, e.g.
-    /// "An internal error has occurred, print and inspect the error details for more information."
-    ///
-    /// The real reason is nested inside `userInfo`:
-    ///   `NSUnderlyingErrorKey` -> an error in `FIRAuthInternalErrorDomain`
-    ///     -> `FIRAuthErrorUserInfoDeserializedResponseKey` -> the raw backend JSON.
-    ///
-    /// This walks that chain and returns everything worth reading.
     var diagnosticDescription: String {
         var lines: [String] = []
         var current: NSError? = self as NSError
@@ -19,7 +11,6 @@ extension Error {
             lines.append("\(indent)[\(depth)] \(error.domain) code=\(error.code)")
             lines.append("\(indent)    description: \(error.localizedDescription)")
 
-            // The raw server response — this is where the actual cause usually is.
             if let response = error.userInfo["FIRAuthErrorUserInfoDeserializedResponseKey"] {
                 lines.append("\(indent)    deserializedResponse: \(response)")
             }

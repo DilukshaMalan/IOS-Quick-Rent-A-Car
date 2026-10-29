@@ -9,7 +9,6 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             List {
-                // MARK: - Profile Header
                 Section {
                     HStack(spacing: .spacingM) {
                         ZStack {
@@ -32,7 +31,6 @@ struct ProfileView: View {
                     .padding(.vertical, .spacingXS)
                 }
 
-                // MARK: - Account
                 Section("Account") {
                     NavigationLink {
                         SettingsView()
@@ -63,7 +61,6 @@ struct ProfileView: View {
                     }
                 }
 
-                // MARK: - Security
                 Section("Security") {
                     Toggle(isOn: $viewModel.isFaceIDEnabled) {
                         Label(BiometricAuthService.shared.biometricTypeName, systemImage: "faceid")
@@ -73,7 +70,6 @@ struct ProfileView: View {
                     }
                 }
 
-                // MARK: - Sign Out
                 Section {
                     Button(role: .destructive) {
                         authViewModel.signOut()
@@ -95,14 +91,11 @@ struct ProfileView: View {
     }
 }
 
-// MARK: - Settings
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
 
-    /// Same key used in QuickRentCarApp so writing here propagates app-wide.
     @AppStorage("appColorScheme") private var appColorScheme: String = ""
 
-    /// Three-state picker: system / light / dark.
     private enum AppearanceOption: String, CaseIterable, Identifiable {
         case system = ""
         case light  = "light"
@@ -129,7 +122,6 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            // MARK: Appearance
             Section("Appearance") {
                 ForEach(AppearanceOption.allCases) { option in
                     Button {
@@ -149,14 +141,12 @@ struct SettingsView: View {
                 }
             }
 
-            // MARK: Notifications
             Section("Notifications") {
                 NavigationLink("Push Notifications") {
                     Text("Notification settings").padding()
                 }
             }
 
-            // MARK: About
             Section("About") {
                 LabeledContent("Version", value: "1.0.0")
                 LabeledContent("Build", value: "1")
@@ -167,23 +157,53 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Booking History
 struct BookingHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ProfileViewModel()
 
     var body: some View {
-        List {
-            if viewModel.bookings.isEmpty {
-                ContentUnavailableView("No Bookings", systemImage: "calendar.badge.exclamationmark",
-                    description: Text("Your booking history will appear here."))
-            } else {
-                ForEach(viewModel.bookings) { booking in
-                    BookingRow(booking: booking)
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.fallbackNavy)
+                        .frame(width: 36, height: 36)
+                        .background(Color.gray.opacity(0.09))
+                        .clipShape(Circle())
+                }
+
+                Spacer()
+
+                Text("Booking History")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color.fallbackNavy)
+
+                Spacer()
+
+                Color.clear.frame(width: 36, height: 36)
+            }
+            .padding(.horizontal, .spacingM)
+            .padding(.top, .spacingS)
+            .padding(.bottom, .spacingM)
+
+            List {
+                if viewModel.bookings.isEmpty {
+                    ContentUnavailableView("No Bookings", systemImage: "calendar.badge.exclamationmark",
+                        description: Text("Your booking history will appear here."))
+                } else {
+                    ForEach(viewModel.bookings) { booking in
+                        BookingRow(booking: booking)
+                    }
                 }
             }
         }
-        .navigationTitle("Booking History")
+        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .tabBar)
         .task {
             if let userId = authViewModel.currentUser?.id {
                 await viewModel.loadProfile(userId: userId)
@@ -217,7 +237,6 @@ struct BookingRow: View {
     }
 }
 
-// MARK: - Payment Records
 struct PaymentRecordsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ProfileViewModel()

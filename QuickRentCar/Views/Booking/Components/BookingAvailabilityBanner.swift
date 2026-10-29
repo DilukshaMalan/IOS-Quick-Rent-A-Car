@@ -2,11 +2,10 @@ import SwiftUI
 
 enum BookingAvailabilityState {
     case available
-    case booked(DateRange)   // overlaps an existing booking
-    case unavailable         // vehicle switched off by the admin
+    case booked(DateRange)
+    case unavailable
 }
 
-/// Inline "Available / Not available for these dates" message under the date pickers.
 struct BookingAvailabilityBanner: View {
     let state: BookingAvailabilityState
     var isChecking = false

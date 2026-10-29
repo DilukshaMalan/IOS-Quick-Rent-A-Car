@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Two‑Side Driver License Scan for Booking
 private enum LicenseSide { case front, rear }
 
 struct DriverLicenseScanView: View {
@@ -10,7 +9,6 @@ struct DriverLicenseScanView: View {
     @ObservedObject var bookingViewModel: BookingViewModel
     @StateObject private var viewModel = LicenseOCRViewModel()
 
-    // Image selection state
     @State private var activeSide: LicenseSide = .front
     @State private var showSourceChoice = false
     @State private var showPicker = false
@@ -18,89 +16,110 @@ struct DriverLicenseScanView: View {
     @State private var navigateToSuccess = false
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: .spacingL) {
-                // Step indicator
-                BookingStepIndicator(step: 2, total: 2, title: "Driver's Licence")
-                    .padding(.horizontal, .spacingL)
-                    .padding(.top, .spacingM)
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.fallbackNavy)
+                        .frame(width: 36, height: 36)
+                        .background(Color.gray.opacity(0.09))
+                        .clipShape(Circle())
+                }
 
-                if viewModel.scanComplete, let info = viewModel.extractedInfo {
-                    // ── Step 3: Review & confirm extracted details ──────
-                    BookingLicenseConfirmView(
-                        info: info,
-                        bookingViewModel: bookingViewModel,
-                        isWorking: viewModel.isSaving || bookingViewModel.isLoading,
-                        errorMessage: bookingViewModel.errorMessage ?? viewModel.errorMessage,
-                        onConfirm: { Task { await confirmWithScannedLicense() } },
-                        onRescan: { viewModel.reset() }
-                    )
-                } else {
-                    // ── Step 1 & 2: Capture both sides ─────────────────
-                    VStack(spacing: .spacingL) {
-                        VStack(spacing: .spacingS) {
-                            Image(systemName: "person.text.rectangle")
-                                .font(.system(size: 64))
-                                .foregroundStyle(Color.fallbackBlue)
-                            Text("Scan Your Licence")
-                                .font(.title2.bold())
-                                .foregroundStyle(Color.fallbackNavy)
-                            Text("Add photos of both sides, then tap **Scan Licence** to extract your details.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
+                Spacer()
 
-                        // Front card
-                        SidePickerCard(title: "Front Side",
-                                       subtitle: "Name • Licence Number • DOB",
-                                       systemIcon: "person.text.rectangle",
-                                       image: viewModel.frontImage) {
-                            activeSide = .front; showSourceChoice = true
-                        }
+                Text("Driver Licence")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color.fallbackNavy)
 
-                        // Rear card
-                        SidePickerCard(title: "Rear Side",
-                                       subtitle: "Expiry Date",
-                                       systemIcon: "calendar.badge.clock",
-                                       image: viewModel.rearImage) {
-                            activeSide = .rear; showSourceChoice = true
-                        }
+                Spacer()
 
-                        // Scan OCR errors
-                        if let error = viewModel.errorMessage {
-                            Label(error, systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
+                Color.clear.frame(width: 36, height: 36)
+            }
+            .padding(.horizontal, .spacingL)
+            .padding(.top, .spacingS)
+            .padding(.bottom, .spacingXS)
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity, alignment: .center)
 
-                        // Scan button
-                        if viewModel.isScanning {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: .spacingL) {
+                    BookingStepIndicator(step: 2, total: 2, title: "Driver's Licence")
+                        .padding(.horizontal, .spacingL)
+                        .padding(.top, .spacingM)
+
+                    if viewModel.scanComplete, let info = viewModel.extractedInfo {
+                        BookingLicenseConfirmView(
+                            info: info,
+                            bookingViewModel: bookingViewModel,
+                            isWorking: viewModel.isSaving || bookingViewModel.isLoading,
+                            errorMessage: bookingViewModel.errorMessage ?? viewModel.errorMessage,
+                            onConfirm: { Task { await confirmWithScannedLicense() } },
+                            onRescan: { viewModel.reset() }
+                        )
+                    } else {
+                        VStack(spacing: .spacingL) {
                             VStack(spacing: .spacingS) {
-                                ProgressView()
-                                Text("Reading licence…")
-                                    .font(.subheadline).foregroundStyle(.secondary)
+                                Image(systemName: "person.text.rectangle")
+                                    .font(.system(size: 64))
+                                    .foregroundStyle(Color.fallbackBlue)
+                                Text("Scan Your Licence")
+                                    .font(.title2.bold())
+                                    .foregroundStyle(Color.fallbackNavy)
+                                Text("Add photos of both sides, then tap **Scan Licence** to extract your details.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
                             }
-                            .padding(.top, .spacingS)
-                        } else {
-                            Button { Task { await viewModel.processBothSides() } } label: {
-                                Label("Scan Licence", systemImage: "wand.and.stars")
-                                    .primaryButtonStyle()
+
+                            SidePickerCard(title: "Front Side",
+                                           subtitle: "Name • Licence Number • DOB",
+                                           systemIcon: "person.text.rectangle",
+                                           image: viewModel.frontImage) {
+                                activeSide = .front; showSourceChoice = true
                             }
-                            .disabled(!viewModel.readyToScan)
-                            .opacity(viewModel.readyToScan ? 1 : 0.45)
-                            .padding(.horizontal, .spacingL)
+
+                            SidePickerCard(title: "Rear Side",
+                                           subtitle: "Expiry Date",
+                                           systemIcon: "calendar.badge.clock",
+                                           image: viewModel.rearImage) {
+                                activeSide = .rear; showSourceChoice = true
+                            }
+
+                            if let error = viewModel.errorMessage {
+                                Label(error, systemImage: "exclamationmark.triangle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
+
+                            if viewModel.isScanning {
+                                VStack(spacing: .spacingS) {
+                                    ProgressView()
+                                    Text("Reading licence…")
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                }
+                                .padding(.top, .spacingS)
+                            } else {
+                                Button { Task { await viewModel.processBothSides() } } label: {
+                                    Label("Scan Licence", systemImage: "wand.and.stars")
+                                        .primaryButtonStyle()
+                                }
+                                .disabled(!viewModel.readyToScan)
+                                .opacity(viewModel.readyToScan ? 1 : 0.45)
+                                .padding(.horizontal, .spacingL)
+                            }
                         }
                     }
                 }
+                .padding(.bottom, .spacingXXL)
             }
-            .padding(.bottom, .spacingXXL)
         }
-        .navigationTitle("Driver Licence")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .tabBar)
         .confirmationDialog("Select Image Source", isPresented: $showSourceChoice, titleVisibility: .visible) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                 Button("Take Photo") { imageSource = .camera; showPicker = true }
@@ -115,7 +134,6 @@ struct DriverLicenseScanView: View {
                 if activeSide == .front { viewModel.frontImage = image } else { viewModel.rearImage = image }
             }
         }
-        // Navigate to success screen when booking confirmed
         .navigationDestination(isPresented: $navigateToSuccess) {
             BookingSuccessView(
                 vehicleName: bookingViewModel.vehicle.name,
@@ -131,7 +149,6 @@ struct DriverLicenseScanView: View {
         }
     }
 
-    // MARK: - Actions
     private func confirmWithScannedLicense() async {
         guard let user = authViewModel.currentUser, let userId = user.id else {
             viewModel.errorMessage = "Please sign in again to confirm your booking."
@@ -143,7 +160,6 @@ struct DriverLicenseScanView: View {
     }
 }
 
-// MARK: - Booking Confirm View (shown after OCR, before placing the order)
 private struct BookingLicenseConfirmView: View {
     @State var info: LicenseInfo
     let bookingViewModel: BookingViewModel
@@ -154,7 +170,6 @@ private struct BookingLicenseConfirmView: View {
 
     var body: some View {
         VStack(spacing: .spacingL) {
-            // ── Scan success header ──────────────────────────────────────────
             VStack(spacing: .spacingS) {
                 ZStack {
                     Circle()
@@ -174,8 +189,6 @@ private struct BookingLicenseConfirmView: View {
             }
             .padding(.top, .spacingS)
 
-
-            // Extracted licence fields
            VStack(alignment: .leading, spacing: .spacingM) {
                sectionTitle("Licence Details")
 
@@ -220,8 +233,6 @@ private struct BookingLicenseConfirmView: View {
            .cardStyle()
            .padding(.horizontal, .spacingL)
 
-
-            // ── Trip summary card ────────────────────────────────────────────
             VStack(alignment: .leading, spacing: .spacingM) {
                 sectionTitle("Booking Summary")
                 ConfirmRow(icon: "car.fill",        label: "Vehicle",      value: bookingViewModel.vehicle.name)
@@ -244,7 +255,6 @@ private struct BookingLicenseConfirmView: View {
             .cardStyle()
             .padding(.horizontal, .spacingL)
 
-            // ── Expired warning ──────────────────────────────────────────────
             if info.isExpired {
                 Label("Your licence appears to be expired and cannot be used for a booking.", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote)
@@ -256,7 +266,6 @@ private struct BookingLicenseConfirmView: View {
                     .padding(.horizontal, .spacingL)
             }
 
-            // ── Booking error ────────────────────────────────────────────────
             if let error = errorMessage {
                 Label(error, systemImage: "xmark.octagon.fill")
                     .font(.footnote)
@@ -268,7 +277,6 @@ private struct BookingLicenseConfirmView: View {
                     .padding(.horizontal, .spacingL)
             }
 
-            // ── Action buttons ───────────────────────────────────────────────
             VStack(spacing: .spacingS) {
                 Button(action: onConfirm) {
                     Group {
@@ -307,7 +315,6 @@ private struct BookingLicenseConfirmView: View {
     }
 }
 
-/// A single labelled row inside a confirm card.
 private struct ConfirmRow: View {
     let icon: String
     let label: String
@@ -332,7 +339,6 @@ private struct ConfirmRow: View {
     }
 }
 
-// MARK: - Side Picker Card (re‑used from LicenseScanView)
 private struct SidePickerCard: View {
     let title: String
     let subtitle: String

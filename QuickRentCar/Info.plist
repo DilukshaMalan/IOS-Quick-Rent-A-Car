@@ -27,7 +27,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>QuickRentCar uses the camera to scan your driver&apos;s license and preview vehicles in Augmented Reality.</string>
+	<string>QuickRentCar uses the camera to scan your driver&apos;s license.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>QuickRentCar uses Face ID for fast, secure sign-in.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

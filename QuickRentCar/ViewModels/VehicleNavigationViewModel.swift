@@ -1,12 +1,6 @@
 import SwiftUI
 import MapKit
 
-// MARK: - Navigation ViewModel
-/// Loads the vehicle's last known GPS position and works out a road route to it.
-///
-/// TESTING: the "current location" is hard-coded to Bandaranaike International Airport.
-/// To use the real device location later, replace `origin` with the coordinate from
-/// `LocationService` (the rest of the screen does not change).
 @MainActor
 final class VehicleNavigationViewModel: ObservableObject {
 
@@ -17,21 +11,14 @@ final class VehicleNavigationViewModel: ObservableObject {
         case failed(String)
     }
 
-    // MARK: Test origin
     static let originName = "Bandaranaike Airport"
     static let origin = CLLocationCoordinate2D(latitude: 7.1802, longitude: 79.8839)
 
-    /// TESTING: the GPS API only knows the sample vehicles (QR-001 … QR-003).
-    /// Stats page uses QR-001 too (see `TelemetryRepository`). Replace with the
-    /// booking's real GPS id once bookings are linked to GPS devices.
     static let gpsVehicleId = "QR-001"
 
-    // MARK: Published state
     @Published private(set) var state: LoadState = .idle
     @Published private(set) var position: GPSAPIPosition?
-    /// The road route (follows the roads). `nil` while loading or if no routing source worked.
     @Published private(set) var route: DrivingRoute?
-    /// Why the road route could not be found (one line per routing source that failed).
     @Published private(set) var routeProblems: [String] = []
     @Published private(set) var isRouting = false
 
@@ -42,7 +29,6 @@ final class VehicleNavigationViewModel: ObservableObject {
         return CLLocationCoordinate2D(latitude: p.latitude, longitude: p.longitude)
     }
 
-    /// Road distance when a route exists, otherwise straight-line distance.
     var distanceMeters: CLLocationDistance? {
         if let route { return route.distance }
         guard let v = vehicleCoordinate else { return nil }
@@ -53,10 +39,8 @@ final class VehicleNavigationViewModel: ObservableObject {
 
     var travelTime: TimeInterval? { route?.duration }
 
-    /// True when only the straight-line estimate is available.
     var isRouteEstimate: Bool { route == nil && position != nil }
 
-    // MARK: Loading
     func load() async {
         state = .loading
         route = nil
@@ -71,8 +55,6 @@ final class VehicleNavigationViewModel: ObservableObject {
         await calculateRoute()
     }
 
-    /// Road route from the (test) origin to the vehicle. If no routing source works, the screen
-    /// keeps working and draws a dashed straight line instead.
     func calculateRoute() async {
         guard let destination = vehicleCoordinate else { return }
 
@@ -82,14 +64,12 @@ final class VehicleNavigationViewModel: ObservableObject {
 
         let outcome = await RoadRouteService.shared.route(from: Self.origin, to: destination)
 
-        guard requestID == routeRequestID else { return }   // a newer request has started
+        guard requestID == routeRequestID else { return }
         route = outcome.route
         routeProblems = outcome.problems
         isRouting = false
     }
 
-    // MARK: External maps
-    /// Google Maps: app if installed, otherwise the documented universal URL (opens browser / app).
     func openGoogleMaps() {
         guard let dest = vehicleCoordinate else { return }
         let o = Self.origin

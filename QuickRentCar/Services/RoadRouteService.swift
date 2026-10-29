@@ -2,8 +2,6 @@ import Foundation
 import MapKit
 import CoreLocation
 
-// MARK: - Route model
-/// A driving route that follows the roads, as a list of coordinates (not a straight line).
 struct DrivingRoute {
     enum Source: String {
         case appleMaps = "Apple Maps"
@@ -11,11 +9,10 @@ struct DrivingRoute {
     }
 
     let coordinates: [CLLocationCoordinate2D]
-    let distance: CLLocationDistance      // metres along the road
-    let duration: TimeInterval            // seconds
+    let distance: CLLocationDistance
+    let duration: TimeInterval
     let source: Source
 
-    /// Map rectangle that contains the whole route (used to zoom the map).
     var boundingMapRect: MKMapRect {
         coordinates.reduce(MKMapRect.null) { rect, coordinate in
             let point = MKMapPoint(coordinate)
@@ -35,17 +32,11 @@ enum RouteError: LocalizedError {
     }
 }
 
-// MARK: - Provider protocol
-/// A source of road routes. Add another one (Google, Mapbox, ...) by conforming to this
-/// protocol and adding it to `RoadRouteService.providers`.
 protocol RouteProvider {
     var name: String { get }
     func route(from origin: CLLocationCoordinate2D, to destination: CLLocationCoordinate2D) async throws -> DrivingRoute
 }
 
-// MARK: - Apple Maps (MKDirections)
-/// Best quality where Apple has routing data. It has no driving directions for some countries
-/// (Sri Lanka included), in which case it throws and the next provider is tried.
 struct AppleMapsRouteProvider: RouteProvider {
     let name = "Apple Maps"
 
@@ -68,14 +59,10 @@ struct AppleMapsRouteProvider: RouteProvider {
     }
 }
 
-// MARK: - OpenStreetMap (OSRM)
-/// Free road routing on OpenStreetMap data, no API key. The public demo server is meant for
-/// testing: for production use your own OSRM server or a paid routing API (Google, Mapbox, ...).
 struct OSRMRouteProvider: RouteProvider {
     let name = "OpenStreetMap (OSRM)"
     var baseURL = "https://router.project-osrm.org"
 
-    // OSRM response (only the parts we use). Coordinates are [longitude, latitude].
     private struct Response: Decodable {
         let code: String
         let message: String?
@@ -91,7 +78,6 @@ struct OSRMRouteProvider: RouteProvider {
     }
 
     func route(from origin: CLLocationCoordinate2D, to destination: CLLocationCoordinate2D) async throws -> DrivingRoute {
-        // OSRM expects longitude,latitude order.
         let urlString = "\(baseURL)/route/v1/driving/"
             + "\(origin.longitude),\(origin.latitude);\(destination.longitude),\(destination.latitude)"
             + "?overview=full&geometries=geojson&steps=false"
@@ -121,8 +107,6 @@ struct OSRMRouteProvider: RouteProvider {
             throw RouteError.noRoute("The route had no geometry.")
         }
 
-        // OSRM snaps both ends to the nearest road. Connect the real start / end points so the
-        // line does not stop short of the airport marker or the vehicle.
         if let first = coordinates.first, Self.meters(first, origin) > 25 {
             coordinates.insert(origin, at: 0)
         }
@@ -144,19 +128,14 @@ struct OSRMRouteProvider: RouteProvider {
     }
 }
 
-// MARK: - Service
 struct RouteOutcome {
     let route: DrivingRoute?
-    /// One line per provider that failed, e.g. "Apple Maps: Directions Not Available".
     let problems: [String]
 }
 
 final class RoadRouteService {
     static let shared = RoadRouteService()
 
-    /// Tried in order; the first one that returns a route wins.
-    /// Apple Maps has no driving routes in Sri Lanka, so you can put `OSRMRouteProvider()` first
-    /// to skip that failed request.
     var providers: [RouteProvider] = [
         AppleMapsRouteProvider(),
         OSRMRouteProvider()
@@ -184,9 +163,7 @@ final class RoadRouteService {
     }
 }
 
-// MARK: - Helpers
 private extension MKPolyline {
-    /// The polyline's points as plain coordinates.
     var coordinateArray: [CLLocationCoordinate2D] {
         var coordinates = [CLLocationCoordinate2D](repeating: CLLocationCoordinate2D(), count: pointCount)
         getCoordinates(&coordinates, range: NSRange(location: 0, length: pointCount))

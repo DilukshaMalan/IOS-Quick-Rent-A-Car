@@ -6,7 +6,6 @@ class AuthService {
     static let shared = AuthService()
     private init() {}
 
-
     var currentUser: FirebaseAuth.User? {
         Auth.auth().currentUser
     }
@@ -37,7 +36,6 @@ class AuthService {
             completion(user)
         }
     }
-
 
     nonisolated func removeAuthStateListener(_ handle: AuthStateDidChangeListenerHandle) {
         Auth.auth().removeStateDidChangeListener(handle)

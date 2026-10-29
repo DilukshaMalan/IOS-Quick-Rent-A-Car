@@ -43,7 +43,7 @@ class StatsViewModel: ObservableObject {
 
         do {
             let statsList = try await firestoreService.fetchStats(userId: userId)
-            stats = statsList.first  // Most recent active booking's stats
+            stats = statsList.first
         } catch {
             errorMessage = error.localizedDescription
             loadSampleStats()
@@ -52,8 +52,6 @@ class StatsViewModel: ObservableObject {
         isLoading = false
     }
 
-    /// Fills `stats` with deterministic sample data. Used when a fetch fails and
-    /// when no user is signed in (SwiftUI previews), so `StatsView` has something to show.
     func loadSampleStats() {
         let calendar = Calendar.current
         let today = Date()

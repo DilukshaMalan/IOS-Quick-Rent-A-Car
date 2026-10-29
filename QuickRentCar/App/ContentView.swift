@@ -4,18 +4,16 @@ struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .home
-    /// True when the app is locked and waiting for Face ID/Touch ID
     @State private var isLocked = false
 
     enum Tab: Int {
-        case home, bookings, ar, stats, profile
+        case home, bookings, stats, profile
     }
 
     var body: some View {
         Group {
             if authViewModel.isAuthenticated {
                 mainTabView
-                    // Show the lock screen as a full-screen overlay
                     .overlay {
                         if isLocked {
                             AppLockView {
@@ -34,27 +32,23 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: authViewModel.isAuthenticated)
         .animation(.easeInOut(duration: 0.25), value: isLocked)
-        // Lock the app whenever it goes to the background (if Face ID is enabled)
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
-                // Only lock when user is logged in AND Face ID feature is on
                 if authViewModel.isAuthenticated && BiometricAuthService.shared.isFaceIDEnabled {
                     isLocked = true
                 }
             case .active:
-                break   // AppLockView handles the prompt automatically on appear
+                break
             default:
                 break
             }
         }
-        // Also lock on first launch if session exists and Face ID is enabled
         .task {
             if authViewModel.isAuthenticated && BiometricAuthService.shared.isFaceIDEnabled {
                 isLocked = true
             }
         }
-        // Reset lock when user signs out
         .onChange(of: authViewModel.isAuthenticated) { _, authenticated in
             if !authenticated { isLocked = false }
         }
@@ -70,10 +64,6 @@ struct ContentView: View {
                 .tabItem { Label("Bookings", systemImage: "calendar.badge.clock") }
                 .tag(Tab.bookings)
 
-            ARPreviewView()
-                .tabItem { Label("AR", systemImage: "arkit") }
-                .tag(Tab.ar)
-
             VehicleStatsView()
                 .tabItem { Label("Stats", systemImage: "chart.bar.fill") }
                 .tag(Tab.stats)
@@ -83,8 +73,20 @@ struct ContentView: View {
                 .tag(Tab.profile)
         }
         .tint(.appBlue)
+        .adaptiveTabStyle()
         .onReceive(NotificationCenter.default.publisher(for: .navigateToHome)) { _ in
             selectedTab = .home
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func adaptiveTabStyle() -> some View {
+        if #available(iOS 18.0, *) {
+            self.tabViewStyle(.sidebarAdaptable)
+        } else {
+            self
         }
     }
 }

@@ -1,24 +1,54 @@
 import SwiftUI
 import MapKit
 
-// MARK: - Bookings Tab Root
 struct BookingsTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = BookingsViewModel()
 
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.isLoading {
-                    loadingView
-                } else if viewModel.allBookings.isEmpty {
-                    emptyView
-                } else {
-                    bookingsList
+            VStack(spacing: 0) {
+                HStack {
+                    Button {
+                        NotificationCenter.default.post(name: .navigateToHome, object: nil)
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.fallbackNavy)
+                            .frame(width: 36, height: 36)
+                            .background(Color.gray.opacity(0.09))
+                            .clipShape(Circle())
+                    }
+
+                    Spacer()
+
+                    Text("My Bookings")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(Color.fallbackNavy)
+
+                    Spacer()
+
+                    Color.clear.frame(width: 36, height: 36)
+                }
+                .padding(.horizontal, .spacingM)
+                .padding(.top, .spacingS)
+                .padding(.bottom, .spacingS)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .background(Color(UIColor.systemGroupedBackground))
+
+                Group {
+                    if viewModel.isLoading {
+                        loadingView
+                    } else if viewModel.allBookings.isEmpty {
+                        emptyView
+                    } else {
+                        bookingsList
+                    }
                 }
             }
-            .navigationTitle("My Bookings")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .tabBar)
             .task {
                 if let userId = authViewModel.currentUser?.id {
                     await viewModel.load(userId: userId)
@@ -32,11 +62,9 @@ struct BookingsTabView: View {
         }
     }
 
-    // MARK: - Grouped list
     private var bookingsList: some View {
         ScrollView {
             LazyVStack(spacing: .spacingL, pinnedViews: []) {
-                // Active / Confirmed — shown first with highlight
                 if !viewModel.activeBookings.isEmpty {
                     bookingSection(
                         title: "Ongoing & Confirmed",
@@ -46,7 +74,6 @@ struct BookingsTabView: View {
                     )
                 }
 
-                // Pending
                 if !viewModel.pendingBookings.isEmpty {
                     bookingSection(
                         title: "Pending",
@@ -56,7 +83,6 @@ struct BookingsTabView: View {
                     )
                 }
 
-                // Past
                 if !viewModel.pastBookings.isEmpty {
                     bookingSection(
                         title: "Completed",
@@ -66,7 +92,6 @@ struct BookingsTabView: View {
                     )
                 }
 
-                // Cancelled
                 if !viewModel.cancelledBookings.isEmpty {
                     bookingSection(
                         title: "Cancelled",
@@ -79,6 +104,8 @@ struct BookingsTabView: View {
             .padding(.horizontal, .spacingM)
             .padding(.top, .spacingM)
             .padding(.bottom, .spacingXXL)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .background(Color(UIColor.systemGroupedBackground))
     }
@@ -86,7 +113,6 @@ struct BookingsTabView: View {
     @ViewBuilder
     private func bookingSection(title: String, icon: String, tint: Color, bookings: [Booking]) -> some View {
         VStack(alignment: .leading, spacing: .spacingS) {
-            // Section header
             HStack(spacing: .spacingS) {
                 Image(systemName: icon)
                     .foregroundStyle(tint)
@@ -105,8 +131,6 @@ struct BookingsTabView: View {
             .padding(.horizontal, .spacingXS)
 
             ForEach(bookings) { booking in
-                // Ongoing rentals open the "Find my vehicle" navigation screen;
-                // every other status opens the booking details.
                 NavigationLink {
                     if booking.isOngoing {
                         VehicleNavigationView(booking: booking)
@@ -121,7 +145,6 @@ struct BookingsTabView: View {
         }
     }
 
-    // MARK: - Loading
     private var loadingView: some View {
         VStack(spacing: .spacingM) {
             ProgressView()
@@ -132,7 +155,6 @@ struct BookingsTabView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Empty
     private var emptyView: some View {
         ContentUnavailableView(
             "No Bookings Yet",
@@ -142,26 +164,21 @@ struct BookingsTabView: View {
     }
 }
 
-// MARK: - Booking helpers (rental-period focused)
 extension Booking {
-    /// Rental is running now or is confirmed and waiting to start → navigation is available.
     var isOngoing: Bool { status == .active || status == .confirmed }
 
-    /// Whole days since the rental started (0 before it starts), capped at `totalDays`.
     func daysUsed(now: Date = Date()) -> Int {
         guard now > pickupDate else { return 0 }
         let d = Calendar.current.dateComponents([.day], from: pickupDate.startOfDay, to: now.startOfDay).day ?? 0
         return min(max(d + 1, 1), max(totalDays, 1))
     }
 
-    /// Whole days left until the return date (0 when overdue).
     func daysLeft(now: Date = Date()) -> Int {
         guard returnDate > now else { return 0 }
         let d = Calendar.current.dateComponents([.day], from: now.startOfDay, to: returnDate.startOfDay).day ?? 0
         return max(d, 0)
     }
 
-    /// 0…1 progress through the rental period.
     func progress(now: Date = Date()) -> Double {
         let total = returnDate.timeIntervalSince(pickupDate)
         guard total > 0 else { return 0 }
@@ -183,7 +200,6 @@ extension Booking.BookingStatus {
     }
 }
 
-// MARK: - Rich Booking Card
 struct BookingCard: View {
     let booking: Booking
     @State private var pulse = false
@@ -213,7 +229,6 @@ struct BookingCard: View {
         )
     }
 
-    // MARK: Status bar
     private var statusBar: some View {
         HStack(spacing: .spacingS) {
             Image(systemName: booking.status.icon)
@@ -223,7 +238,6 @@ struct BookingCard: View {
                 .tracking(0.8)
             Spacer()
             if booking.status == .active {
-                // Pulsing dot – only while the rental is really running
                 HStack(spacing: 4) {
                     Circle()
                         .fill(.green)
@@ -248,7 +262,6 @@ struct BookingCard: View {
         .background(statusColor.opacity(0.1))
     }
 
-    // MARK: Header
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 3) {
@@ -270,7 +283,6 @@ struct BookingCard: View {
         }
     }
 
-    // MARK: Rental period
     private var periodRow: some View {
         HStack(spacing: .spacingS) {
             Image(systemName: "calendar")
@@ -292,7 +304,6 @@ struct BookingCard: View {
         }
     }
 
-    // MARK: Progress (ongoing only)
     private var progressSection: some View {
         let started = Date() >= booking.pickupDate
         return VStack(alignment: .leading, spacing: 6) {
@@ -330,29 +341,57 @@ struct BookingCard: View {
     }
 }
 
-// MARK: - Booking Detail View (non-ongoing bookings, or via "Booking details")
 struct BookingDetailView: View {
     let booking: Booking
+    @Environment(\.dismiss) private var dismiss
 
     private var statusColor: Color { booking.status.tint }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: .spacingL) {
-                statusBanner
-                rentalCard
-                priceCard
+        VStack(spacing: 0) {
+            HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.fallbackNavy)
+                        .frame(width: 36, height: 36)
+                        .background(Color.gray.opacity(0.09))
+                        .clipShape(Circle())
+                }
+
+                Spacer()
+
+                Text("Booking Details")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color.fallbackNavy)
+
+                Spacer()
+
+                Color.clear.frame(width: 36, height: 36)
             }
             .padding(.horizontal, .spacingM)
-            .padding(.top, .spacingM)
-            .padding(.bottom, .spacingXXL)
+            .padding(.top, .spacingS)
+            .padding(.bottom, .spacingS)
+            .background(Color(UIColor.systemGroupedBackground))
+
+            ScrollView {
+                VStack(spacing: .spacingL) {
+                    statusBanner
+                    rentalCard
+                    priceCard
+                }
+                .padding(.horizontal, .spacingM)
+                .padding(.top, .spacingM)
+                .padding(.bottom, .spacingXXL)
+                .frame(maxWidth: 720)
+                .frame(maxWidth: .infinity, alignment: .center)
+            }
         }
         .background(Color(UIColor.systemGroupedBackground))
-        .navigationTitle("Booking Details")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .tabBar)
     }
 
-    // MARK: Status banner
     private var statusBanner: some View {
         HStack(spacing: .spacingM) {
             ZStack {
@@ -381,7 +420,6 @@ struct BookingDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
-    // MARK: Rental period (no pick-up / drop-off points)
     private var rentalCard: some View {
         VStack(alignment: .leading, spacing: .spacingM) {
             sectionLabel("Rental Period")
@@ -410,7 +448,6 @@ struct BookingDetailView: View {
         .cardStyle()
     }
 
-    // MARK: Price
     private var paidLabel: String {
         switch booking.status {
         case .completed:            return "Total Paid"
@@ -446,7 +483,6 @@ struct BookingDetailView: View {
         .cardStyle()
     }
 
-    // MARK: Helpers
     @ViewBuilder
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
@@ -487,7 +523,6 @@ struct BookingDetailView: View {
     }
 }
 
-// MARK: - ViewModel
 @MainActor
 class BookingsViewModel: ObservableObject {
     @Published var allBookings: [Booking] = []

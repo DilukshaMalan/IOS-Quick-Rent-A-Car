@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - Dark scan-screen palette
 extension Color {
     static let scanBackground = Color(red: 0.043, green: 0.075, blue: 0.145)
     static let scanCard       = Color(red: 0.075, green: 0.137, blue: 0.231)
@@ -46,7 +45,6 @@ struct LicenseScanHeader: View {
     }
 }
 
-// MARK: - Square scan icon
 struct ScanFrameIcon: View {
     var body: some View {
         ZStack {
@@ -60,7 +58,6 @@ struct ScanFrameIcon: View {
     }
 }
 
-// MARK: - Big framed card ("Scan Your Driver's License")
 struct LicenseScanFrameCard: View {
     let isScanning: Bool
 
@@ -99,7 +96,6 @@ struct LicenseScanFrameCard: View {
     }
 }
 
-// MARK: - Feature row (icon circle + label)
 struct LicenseFeatureRow: View {
     let icon: String
     let title: String
@@ -122,7 +118,6 @@ struct LicenseFeatureRow: View {
     }
 }
 
-/// The three feature rows shown under the scan card.
 struct LicenseFeatureList: View {
     var body: some View {
         VStack(spacing: .spacingM) {
@@ -133,7 +128,6 @@ struct LicenseFeatureList: View {
     }
 }
 
-// MARK: - Buttons
 struct ScanPrimaryButton: View {
     let title: String
     var isLoading = false
@@ -180,7 +174,6 @@ struct ScanSecondaryButton: View {
     }
 }
 
-// MARK: - Review card (after a successful scan)
 struct LicenseReviewCard: View {
     @Binding var info: LicenseInfo
 

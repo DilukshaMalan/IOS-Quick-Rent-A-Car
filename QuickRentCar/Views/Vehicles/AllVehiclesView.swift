@@ -1,12 +1,19 @@
 import SwiftUI
 
-// MARK: - All Vehicles Screen  (reached via "See All" on Home)
 struct AllVehiclesView: View {
-    /// Pre-selected category when navigating from a chip — nil means "All"
     let initialCategory: Vehicle.VehicleCategory?
 
     @StateObject private var viewModel = AllVehiclesViewModel()
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var vehicleColumns: [GridItem] {
+        if horizontalSizeClass == .regular {
+            return [GridItem(.adaptive(minimum: 360, maximum: 560), spacing: .spacingM)]
+        } else {
+            return [GridItem(.flexible())]
+        }
+    }
 
     init(initialCategory: Vehicle.VehicleCategory? = nil) {
         self.initialCategory = initialCategory
@@ -15,7 +22,6 @@ struct AllVehiclesView: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            // ── Custom nav bar ────────────────────────────────────
             HStack {
                 Button { dismiss() } label: {
                     Image(systemName: "chevron.left")
@@ -34,18 +40,15 @@ struct AllVehiclesView: View {
 
                 Spacer()
 
-                // Invisible spacer to balance the back button
                 Color.clear.frame(width: 36, height: 36)
             }
             .padding(.horizontal, .spacingM)
             .padding(.top, .spacingS)
             .padding(.bottom, .spacingM)
 
-            // ── Category filter chips (like Figma) ────────────────
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
 
-                    // "All" chip
                     AVCategoryChip(
                         title: "All",
                         isSelected: viewModel.selectedCategory == nil
@@ -71,7 +74,6 @@ struct AllVehiclesView: View {
             }
             .padding(.bottom, .spacingM)
 
-            // ── Vehicle list ──────────────────────────────────────
             if viewModel.isLoading {
                 Spacer()
                 ProgressView("Finding vehicles…")
@@ -87,13 +89,13 @@ struct AllVehiclesView: View {
                 Spacer()
             } else {
                 ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: .spacingM) {
+                    LazyVGrid(columns: vehicleColumns, spacing: .spacingM) {
                         ForEach(viewModel.filteredVehicles) { vehicle in
                             VehicleCard(vehicle: vehicle)
-                                .padding(.horizontal, .spacingM)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
+                    .padding(.horizontal, .spacingM)
                     .padding(.vertical, .spacingS)
                     .animation(.spring(response: 0.4, dampingFraction: 0.8),
                                value: viewModel.selectedCategory)
@@ -104,13 +106,11 @@ struct AllVehiclesView: View {
         .navigationBarHidden(true)
         .task {
             await viewModel.load()
-            // Apply the initial category passed in from "See All"
             viewModel.selectedCategory = initialCategory
         }
     }
 }
 
-// MARK: - Chip style that matches the Figma "Available Vehicles" screen
 private struct AVCategoryChip: View {
     let title: String
     let isSelected: Bool
@@ -141,7 +141,6 @@ private struct AVCategoryChip: View {
     }
 }
 
-// MARK: - Lightweight view-model (wraps HomeViewModel's data)
 @MainActor
 final class AllVehiclesViewModel: ObservableObject {
     @Published var allVehicles: [Vehicle] = []

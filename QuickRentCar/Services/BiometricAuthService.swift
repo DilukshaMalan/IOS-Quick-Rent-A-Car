@@ -7,7 +7,6 @@ class BiometricAuthService {
 
     private let context = LAContext()
 
-    // MARK: - Availability
     var isBiometricAvailable: Bool {
         var error: NSError?
         return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
@@ -27,7 +26,6 @@ class BiometricAuthService {
         }
     }
 
-    // MARK: - Authenticate
     func authenticate(reason: String) async -> Bool {
         let context = LAContext()
         var error: NSError?
@@ -46,7 +44,6 @@ class BiometricAuthService {
         }
     }
 
-    // MARK: - Face ID Preference
     var isFaceIDEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: Constants.UserDefaultsKeys.isFaceIDEnabled) }
         set { UserDefaults.standard.set(newValue, forKey: Constants.UserDefaultsKeys.isFaceIDEnabled) }

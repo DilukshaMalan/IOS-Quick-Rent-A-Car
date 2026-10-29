@@ -45,7 +45,6 @@ final class VehicleAvailabilityTests: XCTestCase {
         let existingBooking = DateRange(start: today.adding(days: 2), end: today.adding(days: 5))
         let vehicle = makeTestVehicle(isAvailable: true, bookedPeriods: [existingBooking])
 
-        // Conflicts with days 3 to 6
         let conflictPeriod = DateRange(start: today.adding(days: 3), end: today.adding(days: 6))
         XCTAssertFalse(vehicle.canBeBooked(for: conflictPeriod), "Should reject booking that overlaps an existing reservation")
     }
@@ -55,7 +54,6 @@ final class VehicleAvailabilityTests: XCTestCase {
         let existingBooking = DateRange(start: today.adding(days: 5), end: today.adding(days: 10))
         let vehicle = makeTestVehicle(isAvailable: true, bookedPeriods: [existingBooking])
 
-        // Dates 1 to 4 do not overlap 5 to 10
         let clearPeriod = DateRange(start: today.adding(days: 1), end: today.adding(days: 4))
         XCTAssertTrue(vehicle.canBeBooked(for: clearPeriod), "Should allow booking for non-overlapping dates")
     }

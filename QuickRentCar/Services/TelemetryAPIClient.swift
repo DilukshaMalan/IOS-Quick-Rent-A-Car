@@ -1,7 +1,4 @@
-
 import Foundation
-
-// MARK: - API Response Models
 
 struct GPSAPIHealthResponse: Decodable {
     let status: String
@@ -75,8 +72,6 @@ private struct GPSAPIErrorDetails: Decodable {
     let message: String
 }
 
-// MARK: - API Errors
-
 enum GPSAPIClientError: LocalizedError {
     case invalidURL
     case missingAPIKey
@@ -110,8 +105,6 @@ enum GPSAPIClientError: LocalizedError {
     }
 }
 
-// MARK: - GPS API Client
-
 final class TelemetryAPIClient {
 
     static let shared = TelemetryAPIClient()
@@ -134,9 +127,6 @@ final class TelemetryAPIClient {
         self.session = session
     }
 
-    // MARK: Health Check
-
-    // The health endpoint does not require the API key.
     func fetchHealth() async throws -> GPSAPIHealthResponse {
         try await get(
             GPSAPIHealthResponse.self,
@@ -144,8 +134,6 @@ final class TelemetryAPIClient {
             requiresAPIKey: false
         )
     }
-
-    // MARK: Vehicles
 
     func fetchVehicles() async throws -> [GPSAPIVehicleSummary] {
         let response = try await get(
@@ -156,8 +144,6 @@ final class TelemetryAPIClient {
         return response.vehicles
     }
 
-    // MARK: Latest Position
-
     func fetchPosition(
         vehicleId: String
     ) async throws -> GPSAPIPosition {
@@ -166,8 +152,6 @@ final class TelemetryAPIClient {
             path: "/api/v1/vehicles/\(vehicleId)/position"
         )
     }
-
-    // MARK: Trips Within a Date Range
 
     func fetchTrips(
         vehicleId: String,
@@ -211,8 +195,6 @@ final class TelemetryAPIClient {
         )
     }
 
-    // MARK: Individual Trip
-
     func fetchTrip(
         vehicleId: String,
         tripId: String,
@@ -232,8 +214,6 @@ final class TelemetryAPIClient {
             queryItems: queryItems
         )
     }
-
-    // MARK: Shared HTTP Request
 
     private func get<T: Decodable>(
         _ type: T.Type,
@@ -309,8 +289,6 @@ final class TelemetryAPIClient {
         )
     }
 
-    // The API accepts ISO 8601 dates with an explicit offset.
-    // UTC timestamps ending in Z are valid and avoid '+' encoding issues.
     private static func apiTimestamp(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]

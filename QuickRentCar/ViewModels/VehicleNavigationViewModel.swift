@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import Combine
 
 @MainActor
 final class VehicleNavigationViewModel: ObservableObject {
@@ -11,8 +12,11 @@ final class VehicleNavigationViewModel: ObservableObject {
         case failed(String)
     }
 
-    static let originName = "Bandaranaike Airport"
-    static let origin = CLLocationCoordinate2D(latitude: 7.1802, longitude: 79.8839)
+    static let fallbackOriginName = "Bandaranaike Airport"
+    static let fallbackOrigin = CLLocationCoordinate2D(latitude: 7.1802, longitude: 79.8839)
+
+    static let originName = fallbackOriginName
+    static let origin = fallbackOrigin
 
     static let gpsVehicleId = "QR-001"
 
@@ -21,8 +25,42 @@ final class VehicleNavigationViewModel: ObservableObject {
     @Published private(set) var route: DrivingRoute?
     @Published private(set) var routeProblems: [String] = []
     @Published private(set) var isRouting = false
+    @Published private(set) var userLocation: CLLocation?
+    @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
+    let locationManager = DeviceLocationManager()
+    private var cancellables = Set<AnyCancellable>()
     private var routeRequestID = 0
+    private var lastRoutedCoordinate: CLLocationCoordinate2D?
+
+    init() {
+        locationManager.$location
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newLocation in
+                self?.userLocation = newLocation
+                self?.handleLocationUpdate(newLocation)
+            }
+            .store(in: &cancellables)
+
+        locationManager.$authorizationStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                self?.authorizationStatus = status
+            }
+            .store(in: &cancellables)
+    }
+
+    var originCoordinate: CLLocationCoordinate2D {
+        userLocation?.coordinate ?? Self.fallbackOrigin
+    }
+
+    var originName: String {
+        userLocation != nil ? "Current Location" : Self.fallbackOriginName
+    }
+
+    var isUsingCurrentLocation: Bool {
+        userLocation != nil
+    }
 
     var vehicleCoordinate: CLLocationCoordinate2D? {
         guard let p = position else { return nil }
@@ -32,7 +70,7 @@ final class VehicleNavigationViewModel: ObservableObject {
     var distanceMeters: CLLocationDistance? {
         if let route { return route.distance }
         guard let v = vehicleCoordinate else { return nil }
-        let a = CLLocation(latitude: Self.origin.latitude, longitude: Self.origin.longitude)
+        let a = CLLocation(latitude: originCoordinate.latitude, longitude: originCoordinate.longitude)
         let b = CLLocation(latitude: v.latitude, longitude: v.longitude)
         return a.distance(from: b)
     }
@@ -41,7 +79,16 @@ final class VehicleNavigationViewModel: ObservableObject {
 
     var isRouteEstimate: Bool { route == nil && position != nil }
 
+    func startLocationUpdates() {
+        locationManager.requestLocationUpdates()
+    }
+
+    func stopLocationUpdates() {
+        locationManager.stopLocationUpdates()
+    }
+
     func load() async {
+        startLocationUpdates()
         state = .loading
         route = nil
         routeProblems = []
@@ -55,6 +102,20 @@ final class VehicleNavigationViewModel: ObservableObject {
         await calculateRoute()
     }
 
+    private func handleLocationUpdate(_ location: CLLocation?) {
+        guard let location = location, vehicleCoordinate != nil else { return }
+        if let last = lastRoutedCoordinate {
+            let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
+            if lastLoc.distance(from: location) < 30 && route != nil {
+                return
+            }
+        }
+        lastRoutedCoordinate = location.coordinate
+        Task { [weak self] in
+            await self?.calculateRoute()
+        }
+    }
+
     func calculateRoute() async {
         guard let destination = vehicleCoordinate else { return }
 
@@ -62,7 +123,7 @@ final class VehicleNavigationViewModel: ObservableObject {
         let requestID = routeRequestID
         isRouting = true
 
-        let outcome = await RoadRouteService.shared.route(from: Self.origin, to: destination)
+        let outcome = await RoadRouteService.shared.route(from: originCoordinate, to: destination)
 
         guard requestID == routeRequestID else { return }
         route = outcome.route
@@ -72,7 +133,7 @@ final class VehicleNavigationViewModel: ObservableObject {
 
     func openGoogleMaps() {
         guard let dest = vehicleCoordinate else { return }
-        let o = Self.origin
+        let o = originCoordinate
 
         if let appURL = URL(string:
             "comgooglemaps://?saddr=\(o.latitude),\(o.longitude)&daddr=\(dest.latitude),\(dest.longitude)&directionsmode=driving"),
@@ -89,8 +150,13 @@ final class VehicleNavigationViewModel: ObservableObject {
 
     func openAppleMaps(vehicleName: String) {
         guard let dest = vehicleCoordinate else { return }
-        let from = MKMapItem(placemark: MKPlacemark(coordinate: Self.origin))
-        from.name = Self.originName
+        let from: MKMapItem
+        if isUsingCurrentLocation {
+            from = MKMapItem.forCurrentLocation()
+        } else {
+            from = MKMapItem(placemark: MKPlacemark(coordinate: originCoordinate))
+            from.name = originName
+        }
         let to = MKMapItem(placemark: MKPlacemark(coordinate: dest))
         to.name = "\(vehicleName) – last known location"
         MKMapItem.openMaps(

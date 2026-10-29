@@ -69,15 +69,16 @@ struct VehicleNavigationView: View {
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .tabBar)
         .task { await viewModel.load() }
+        .onDisappear { viewModel.stopLocationUpdates() }
     }
 
     private var mapCard: some View {
         ZStack(alignment: .bottom) {
             Map(position: $camera) {
-                Marker(VehicleNavigationViewModel.originName,
-                       systemImage: "airplane",
-                       coordinate: VehicleNavigationViewModel.origin)
-                    .tint(.orange)
+                Marker(viewModel.originName,
+                       systemImage: viewModel.isUsingCurrentLocation ? "location.fill" : "airplane",
+                       coordinate: viewModel.originCoordinate)
+                    .tint(viewModel.isUsingCurrentLocation ? .blue : .orange)
 
                 if let dest = viewModel.vehicleCoordinate {
                     Marker(booking.vehicleName, systemImage: "car.fill", coordinate: dest)
@@ -89,7 +90,7 @@ struct VehicleNavigationView: View {
                         MapPolyline(coordinates: route.coordinates)
                             .stroke(Color.fallbackBlue, lineWidth: 5)
                     } else if !viewModel.isRouting {
-                        MapPolyline(coordinates: [VehicleNavigationViewModel.origin, dest])
+                        MapPolyline(coordinates: [viewModel.originCoordinate, dest])
                             .stroke(Color.fallbackBlue.opacity(0.6),
                                     style: StrokeStyle(lineWidth: 4, dash: [8, 6]))
                     }
@@ -117,13 +118,14 @@ struct VehicleNavigationView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
         .onChange(of: viewModel.vehicleCoordinate?.latitude) { _, _ in fitCamera() }
+        .onChange(of: viewModel.originCoordinate.latitude) { _, _ in fitCamera() }
         .onChange(of: viewModel.route?.coordinates.count) { _, _ in fitCamera() }
     }
 
     private func fitCamera() {
         guard let dest = viewModel.vehicleCoordinate else { return }
         var rect = MKMapRect.null
-        for coord in [VehicleNavigationViewModel.origin, dest] {
+        for coord in [viewModel.originCoordinate, dest] {
             let p = MKMapPoint(coord)
             rect = rect.union(MKMapRect(x: p.x, y: p.y, width: 0, height: 0))
         }
@@ -155,12 +157,31 @@ struct VehicleNavigationView: View {
                     .font(.subheadline.bold())
 
             default:
-                routeRow(icon: "airplane", color: .orange,
-                         title: "From (test location)",
-                         value: VehicleNavigationViewModel.originName)
+                routeRow(icon: viewModel.isUsingCurrentLocation ? "location.fill" : "airplane",
+                         color: viewModel.isUsingCurrentLocation ? .blue : .orange,
+                         title: viewModel.isUsingCurrentLocation ? "From" : "From (default location)",
+                         value: viewModel.originName)
                 routeRow(icon: "car.fill", color: .green,
                          title: "To (\(booking.vehicleName))",
                          value: viewModel.position == nil ? "Locating…" : "Last known GPS location")
+
+                if viewModel.authorizationStatus == .denied || viewModel.authorizationStatus == .restricted {
+                    HStack(spacing: .spacingS) {
+                        Image(systemName: "location.slash.fill")
+                            .foregroundStyle(.orange)
+                        Text("Location access is disabled. Using default location.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            Button("Settings") {
+                                UIApplication.shared.open(url)
+                            }
+                            .font(.caption.bold())
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
 
                 if viewModel.position != nil {
                     Divider()

@@ -23,9 +23,6 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
 		AB12CD34EF56000000000004 /* QuickRentCar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuickRentCar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DF4B63EF309351AC00FF0E56 /* QuickRentCarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuickRentCarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };

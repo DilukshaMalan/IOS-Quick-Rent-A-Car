@@ -3,7 +3,8 @@ import Foundation
 extension String {
     /// Basic email validation
     var isValidEmail: Bool {
-        let emailRegex = #"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"#
+        guard !self.contains("..") else { return false }
+        let emailRegex = #"^[A-Za-z0-9._%+\-]+@([A-Za-z0-9\-]+\.)+[A-Za-z]{2,}$"#
         return self.range(of: emailRegex, options: .regularExpression) != nil
     }
 

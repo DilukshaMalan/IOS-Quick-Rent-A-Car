@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>LSAppliocationQueriesSchemes</key>
-	<string>comgooglemaps</string>
+	<array>
+		<string>comgooglemaps</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>

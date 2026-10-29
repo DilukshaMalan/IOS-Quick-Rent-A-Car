@@ -1,119 +1,6 @@
 import SwiftUI
 import MapKit
 
-// MARK: - Navigation ViewModel
-/// Loads the vehicle's last known GPS position and calculates a driving route to it.
-///
-/// TESTING: the "current location" is hard-coded to Bandaranaike International Airport.
-/// To use the real device location later, replace `origin` with the coordinate from
-/// `LocationService` (the rest of this file does not change).
-@MainActor
-final class VehicleNavigationViewModel: ObservableObject {
-
-    enum LoadState: Equatable {
-        case idle
-        case loading
-        case loaded
-        case failed(String)
-    }
-
-    // MARK: Test origin
-    static let originName = "Bandaranaike Airport"
-    static let origin = CLLocationCoordinate2D(latitude: 7.1802, longitude: 79.8839)
-
-    /// TESTING: the GPS API only knows the sample vehicles (QR-001 … QR-003).
-    /// Stats page uses QR-001 too (see `TelemetryRepository`). Replace with the
-    /// booking's real GPS id once bookings are linked to GPS devices.
-    static let gpsVehicleId = "QR-001"
-
-    // MARK: Published state
-    @Published private(set) var state: LoadState = .idle
-    @Published private(set) var position: GPSAPIPosition?
-    @Published private(set) var route: MKRoute?
-    @Published private(set) var isRouting = false
-
-    var vehicleCoordinate: CLLocationCoordinate2D? {
-        guard let p = position else { return nil }
-        return CLLocationCoordinate2D(latitude: p.latitude, longitude: p.longitude)
-    }
-
-    /// Road distance when a route exists, otherwise straight-line distance.
-    var distanceMeters: CLLocationDistance? {
-        if let route { return route.distance }
-        guard let v = vehicleCoordinate else { return nil }
-        let a = CLLocation(latitude: Self.origin.latitude, longitude: Self.origin.longitude)
-        let b = CLLocation(latitude: v.latitude, longitude: v.longitude)
-        return a.distance(from: b)
-    }
-
-    var travelTime: TimeInterval? { route?.expectedTravelTime }
-    var isRouteEstimate: Bool { route == nil && position != nil }
-
-    // MARK: Loading
-    func load() async {
-        state = .loading
-        route = nil
-        do {
-            position = try await TelemetryAPIClient.shared.fetchPosition(vehicleId: Self.gpsVehicleId)
-            state = .loaded
-            await calculateRoute()
-        } catch {
-            state = .failed(error.localizedDescription)
-        }
-    }
-
-    /// Driving route from the (test) origin to the vehicle. On failure the screen keeps
-    /// working and draws a dashed straight line instead.
-    func calculateRoute() async {
-        guard let destination = vehicleCoordinate else { return }
-        isRouting = true
-        defer { isRouting = false }
-
-        let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: Self.origin))
-        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination))
-        request.transportType = .automobile
-
-        do {
-            let response = try await MKDirections(request: request).calculate()
-            route = response.routes.first
-        } catch {
-            route = nil
-        }
-    }
-
-    // MARK: External maps
-    /// Google Maps: app if installed, otherwise the documented universal URL (opens browser / app).
-    func openGoogleMaps() {
-        guard let dest = vehicleCoordinate else { return }
-        let o = Self.origin
-
-        if let appURL = URL(string:
-            "comgooglemaps://?saddr=\(o.latitude),\(o.longitude)&daddr=\(dest.latitude),\(dest.longitude)&directionsmode=driving"),
-           UIApplication.shared.canOpenURL(appURL) {
-            UIApplication.shared.open(appURL)
-            return
-        }
-
-        if let webURL = URL(string:
-            "https://www.google.com/maps/dir/?api=1&origin=\(o.latitude),\(o.longitude)&destination=\(dest.latitude),\(dest.longitude)&travelmode=driving") {
-            UIApplication.shared.open(webURL)
-        }
-    }
-
-    func openAppleMaps(vehicleName: String) {
-        guard let dest = vehicleCoordinate else { return }
-        let from = MKMapItem(placemark: MKPlacemark(coordinate: Self.origin))
-        from.name = Self.originName
-        let to = MKMapItem(placemark: MKPlacemark(coordinate: dest))
-        to.name = "\(vehicleName) – last known location"
-        MKMapItem.openMaps(
-            with: [from, to],
-            launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving]
-        )
-    }
-}
-
 // MARK: - Navigation Screen (opened from an ongoing booking)
 struct VehicleNavigationView: View {
     let booking: Booking
@@ -151,7 +38,7 @@ struct VehicleNavigationView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .disabled(viewModel.state == .loading)
+                .disabled(viewModel.state == .loading || viewModel.isRouting)
             }
         }
         .task { await viewModel.load() }
@@ -159,7 +46,7 @@ struct VehicleNavigationView: View {
 
     // MARK: Map
     private var mapCard: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Map(position: $camera) {
                 Marker(VehicleNavigationViewModel.originName,
                        systemImage: "airplane",
@@ -171,9 +58,13 @@ struct VehicleNavigationView: View {
                         .tint(.green)
 
                     if let route = viewModel.route {
-                        MapPolyline(route.polyline)
+                        // Road route: a white outline under the blue line keeps it readable on any map.
+                        MapPolyline(coordinates: route.coordinates)
+                            .stroke(.white, lineWidth: 9)
+                        MapPolyline(coordinates: route.coordinates)
                             .stroke(Color.fallbackBlue, lineWidth: 5)
-                    } else {
+                    } else if !viewModel.isRouting {
+                        // No routing source worked: dashed straight line as a rough guide.
                         MapPolyline(coordinates: [VehicleNavigationViewModel.origin, dest])
                             .stroke(Color.fallbackBlue.opacity(0.6),
                                     style: StrokeStyle(lineWidth: 4, dash: [8, 6]))
@@ -187,16 +78,25 @@ struct VehicleNavigationView: View {
                     .padding(.spacingM)
                     .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .frame(maxHeight: .infinity)
+            } else if viewModel.isRouting {
+                Label("Finding road route…", systemImage: "arrow.triangle.turn.up.right.diamond")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, .spacingM)
+                    .padding(.vertical, .spacingS)
+                    .background(.regularMaterial)
+                    .clipShape(Capsule())
+                    .padding(.bottom, .spacingS)
             }
         }
         .frame(height: 280)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
         .onChange(of: viewModel.vehicleCoordinate?.latitude) { _, _ in fitCamera() }
-        .onChange(of: viewModel.route?.polyline.pointCount) { _, _ in fitCamera() }
+        .onChange(of: viewModel.route?.coordinates.count) { _, _ in fitCamera() }
     }
 
-    /// Zooms the map so the origin, the vehicle and the route are all visible.
+    /// Zooms the map so the origin, the vehicle and the whole route are visible.
     private func fitCamera() {
         guard let dest = viewModel.vehicleCoordinate else { return }
         var rect = MKMapRect.null
@@ -205,7 +105,7 @@ struct VehicleNavigationView: View {
             rect = rect.union(MKMapRect(x: p.x, y: p.y, width: 0, height: 0))
         }
         if let route = viewModel.route {
-            rect = rect.union(route.polyline.boundingMapRect)
+            rect = rect.union(route.boundingMapRect)
         }
         let padded = rect.insetBy(dx: -rect.size.width * 0.25 - 2000,
                                   dy: -rect.size.height * 0.25 - 2000)
@@ -245,7 +145,7 @@ struct VehicleNavigationView: View {
                     HStack(spacing: .spacingL) {
                         stat(title: "Distance",
                              value: viewModel.distanceMeters.map(Self.formatDistance) ?? "—",
-                             note: viewModel.isRouteEstimate ? "straight line" : nil)
+                             note: viewModel.isRouteEstimate ? "straight line" : "by road")
                         stat(title: "Drive time",
                              value: viewModel.travelTime.map(Self.formatDuration) ?? "—",
                              note: nil)
@@ -258,11 +158,13 @@ struct VehicleNavigationView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    if viewModel.isRouteEstimate && !viewModel.isRouting {
-                        Label("Road route not available – showing a straight line.",
-                              systemImage: "info.circle")
+                    if let route = viewModel.route {
+                        Label("Route via \(route.source.rawValue)", systemImage: "road.lanes")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                    if viewModel.isRouteEstimate && !viewModel.isRouting {
+                        routeFailureNote
                     }
                 }
             }
@@ -270,6 +172,25 @@ struct VehicleNavigationView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.spacingM)
         .cardStyle()
+    }
+
+    /// Shown when no routing source could draw the road route.
+    private var routeFailureNote: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Road route not available – showing a straight line.",
+                  systemImage: "info.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ForEach(viewModel.routeProblems, id: \.self) { problem in
+                Text(problem)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button("Retry route") { Task { await viewModel.calculateRoute() } }
+                .font(.caption.bold())
+        }
     }
 
     private var vehicleStateText: String {

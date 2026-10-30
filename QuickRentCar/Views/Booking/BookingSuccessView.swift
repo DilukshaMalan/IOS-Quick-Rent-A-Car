@@ -134,13 +134,17 @@ struct BookingSuccessView: View {
                     .animation(.easeOut(duration: 0.5).delay(0.45), value: animateContent)
 
                     VStack(spacing: .spacingS) {
-                        NavigationLink(destination: HomeView()) {
+                        Button {
+                            NotificationCenter.default.post(name: .navigateToHome, object: nil)
+                        } label: {
                             Label("Go to Home", systemImage: "house.fill")
                                 .primaryButtonStyle()
                         }
                         .padding(.horizontal, .spacingL)
-                        
-                        NavigationLink(destination: AllVehiclesView()) {
+
+                        Button {
+                            NotificationCenter.default.post(name: .navigateToHome, object: nil)
+                        } label: {
                             Label("Back to Browse", systemImage: "arrow.left")
                                 .secondaryButtonStyle()
                         }
@@ -186,18 +190,11 @@ private struct SuccessDetailRow: View {
     }
 }
 
-private struct HomeDestination: View {
-    var body: some View {
-        EmptyView()
-            .onAppear {
-                NotificationCenter.default.post(name: .navigateToHome, object: nil)
-            }
-    }
-}
 
 extension Notification.Name {
     static let navigateToHome = Notification.Name("navigateToHome")
 }
+
 
 #Preview {
     NavigationStack {

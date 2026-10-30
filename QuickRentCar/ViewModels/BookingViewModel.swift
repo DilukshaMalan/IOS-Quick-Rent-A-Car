@@ -123,6 +123,11 @@ class BookingViewModel: ObservableObject {
             let bookingId = try await firestoreService.createBooking(booking)
             confirmedBookingId = bookingId
 
+            notificationService.scheduleBookingConfirmedNotification(
+                bookingId: bookingId,
+                vehicleName: vehicle.name,
+                pickupDate: pickupDate
+            )
             notificationService.schedulePickupReminder(
                 bookingId: bookingId,
                 vehicleName: vehicle.name,

@@ -14,7 +14,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Messaging.messaging().delegate = self
 
         let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
-        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { _, _ in }
+        UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
+            if let error {
+                print("[AppDelegate] Notification auth error: \(error.localizedDescription)")
+            } else {
+                print("[AppDelegate] Notification permission granted: \(granted)")
+            }
+        }
         application.registerForRemoteNotifications()
 
         return true
@@ -42,6 +48,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
         completionHandler()
     }
 }

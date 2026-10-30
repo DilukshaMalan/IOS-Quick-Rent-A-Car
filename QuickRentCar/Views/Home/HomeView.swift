@@ -5,6 +5,7 @@ struct HomeView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var viewModel = HomeViewModel()
     @State private var navPath = NavigationPath()
+    @State private var navStackId = UUID()
 
     private var vehicleColumns: [GridItem] {
         if horizontalSizeClass == .regular {
@@ -201,8 +202,10 @@ struct HomeView: View {
             .task { await viewModel.loadVehicles() }
             .onReceive(NotificationCenter.default.publisher(for: .navigateToHome)) { _ in
                 navPath = NavigationPath()
+                navStackId = UUID()
             }
         }
+        .id(navStackId)
     }
 
     private var resultsTitle: String {

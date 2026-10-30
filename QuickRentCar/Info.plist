@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>QuickRentCar uses the camera to scan your driver&apos;s license.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>QuickRentCar sends booking confirmations and pickup/return reminders so you never miss your rental.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>QuickRentCar uses Face ID for fast, secure sign-in.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

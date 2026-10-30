@@ -1,7 +1,9 @@
 import SwiftUI
+import UserNotifications
 
 struct HomeTopBarView: View {
     let userName: String
+    @State private var unreadCount: Int = 0
 
     var body: some View {
         HStack(alignment: .center) {
@@ -27,7 +29,7 @@ struct HomeTopBarView: View {
 
             Spacer()
 
-            NavigationLink(destination: Text("Notifications").padding()) {
+            NavigationLink(destination: NotificationsView()) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "bell.fill")
                         .font(.system(size: 18, weight: .semibold))
@@ -36,10 +38,22 @@ struct HomeTopBarView: View {
                         .background(Color.gray.opacity(0.09))
                         .clipShape(Circle())
 
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 9, height: 9)
-                        .offset(x: 1, y: 0)
+                    if unreadCount > 0 {
+                        ZStack {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: unreadCount > 9 ? 18 : 14, height: 14)
+                            Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .offset(x: 2, y: -1)
+                    } else {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 9, height: 9)
+                            .offset(x: 1, y: 0)
+                    }
                 }
             }
             .buttonStyle(.plain)
@@ -47,7 +61,23 @@ struct HomeTopBarView: View {
         .padding(.horizontal, .spacingM)
         .padding(.top, .spacingS)
         .padding(.bottom, 4)
+        .task { await refreshBadge() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { await refreshBadge() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshNotificationBadge)) { _ in
+            Task { await refreshBadge() }
+        }
     }
+
+    private func refreshBadge() async {
+        let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
+        unreadCount = delivered.count
+    }
+}
+
+extension Notification.Name {
+    static let refreshNotificationBadge = Notification.Name("refreshNotificationBadge")
 }
 
 #Preview {
